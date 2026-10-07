@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -98,7 +99,7 @@ fun LoginScreen(
             Spacer(Modifier.height(32.dp))
 
             var selectedTab by remember { mutableIntStateOf(0) }
-            val tabTitles = listOf("EduVULCAN", "Dzienniczek", "Librus")
+            val tabTitles = listOf("eduVulcan", "Token", "Librus")
 
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
@@ -108,11 +109,16 @@ fun LoginScreen(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = tabTitles.size),
+                        // No check mark: it takes space and makes labels wrap to two lines.
+                        icon = {},
                         label = {
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     )
