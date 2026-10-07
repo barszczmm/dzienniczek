@@ -1,8 +1,9 @@
 name: Build
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "master", "main" ]
+    branches: [ "**" ]
   pull_request:
     branches: [ "master", "main" ]
 
@@ -26,6 +27,13 @@ jobs:
 
       - name: Build Android App
         run: ./gradlew :composeApp:assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dzienniczek-debug-apk
+          path: composeApp/build/outputs/apk/debug/*.apk
+          retention-days: 14
 
   ios-build:
     name: Build iOS
