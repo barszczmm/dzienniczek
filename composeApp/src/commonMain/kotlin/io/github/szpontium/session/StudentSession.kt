@@ -4,6 +4,7 @@ import io.github.szpontium.api.hebe.SzpontApi
 import io.github.szpontium.api.hebe.SzpontHebeCeApi
 import io.github.szpontium.api.hebe.credentials.RsaCredential
 import io.github.szpontium.api.hebe.models.Account
+import io.github.szpontium.api.librus.LibrusTokenRefresher
 import io.github.szpontium.api.librus.SzpontLibrusAdapterApi
 import io.github.szpontium.api.librus.SzpontLibrusApi
 import io.github.szpontium.api.librus.models.LibrusSynergiaAccount
@@ -89,8 +90,12 @@ class StudentSession(
     val prometheusTenant: String? = null,
     var isEnabled: Boolean = true,
     httpClient: HttpClient,
-    val librus: LibrusStudentCredential? = null
+    librus: LibrusStudentCredential? = null
 ) {
+    /** Librus login data; updated when tokens are refreshed automatically. */
+    var librus: LibrusStudentCredential? = librus
+        private set
+
     val isLibrus: Boolean get() = librus != null
 
     val librusApi: SzpontLibrusApi?
@@ -101,7 +106,15 @@ class StudentSession(
             val lApi = SzpontLibrusApi(
                 httpClient = httpClient,
                 portalAccessToken = librus.portalToken,
-                apiAccessToken = librus.apiToken
+                apiAccessToken = librus.apiToken,
+                tokenRefresher = LibrusTokenRefresher(
+                    email = librus.email,
+                    password = librus.password,
+                    synergiaLogin = librus.synergiaAccount.login
+                ) { portalToken, apiToken ->
+                    this.librus = this.librus?.copy(portalToken = portalToken, apiToken = apiToken)
+                    SessionEvents.notifyCredentialsChanged()
+                }
             )
             librusApi = lApi
             api = SzpontLibrusAdapterApi(

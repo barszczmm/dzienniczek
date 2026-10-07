@@ -27,6 +27,7 @@ import androidx.navigation3.ui.NavDisplay
 import io.github.szpontium.di.appModule
 import io.github.szpontium.navigation.Route
 import io.github.szpontium.session.ApiSession
+import io.github.szpontium.session.SessionEvents
 import io.github.szpontium.session.SessionStorage
 import io.github.szpontium.theme.SzpontTheme
 import io.github.szpontium.ui.screen.DashboardScreen
@@ -62,6 +63,16 @@ private fun AppNavigation() {
         val restored = sessionStorage.restore(session)
         startRoute = if (restored) Route.Dashboard else Route.Login
         isLoading = false
+    }
+
+    // Save automatically refreshed tokens (e.g. Librus) so they survive an app restart.
+    LaunchedEffect(Unit) {
+        SessionEvents.credentialsChanged.collect {
+            val sessions = session.studentSessions.value
+            if (sessions.isNotEmpty()) {
+                sessionStorage.saveStudents(sessions, session.activeStudent.value?.id)
+            }
+        }
     }
 
     if (isLoading) {
