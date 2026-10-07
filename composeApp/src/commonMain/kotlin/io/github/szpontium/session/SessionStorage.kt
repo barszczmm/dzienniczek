@@ -237,6 +237,45 @@ class SessionStorage(
         }
     }
 
+    /** EduVulcan student sessions as stored on disk (used by the background message checker). */
+    suspend fun loadVulcanStudents(): List<StudentSession> {
+        val multiJson = dataStore.data.first()[multiStudentsKey] ?: return emptyList()
+        return try {
+            json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson).map { s ->
+                StudentSession(
+                    id = s.id,
+                    account = s.account,
+                    credential = s.credential.toRsaCredential(),
+                    restUrl = s.restUrl,
+                    prometheusLogin = s.prometheusLogin,
+                    prometheusPassword = s.prometheusPassword,
+                    prometheusTenant = s.prometheusTenant,
+                    isEnabled = s.isEnabled,
+                    httpClient = httpClient
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /** Stored Librus credential, or null when no Librus account is logged in. */
+    suspend fun loadLibrusCredential(): StoredCredential? {
+        val credentialJson = dataStore.data.first()[credentialKey] ?: return null
+        return try {
+            json.decodeFromString<StoredCredential>(credentialJson).takeIf { it.apiType == "librus" }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun updateLibrusPortalToken(portalToken: String) {
+        val current = loadLibrusCredential() ?: return
+        dataStore.edit { prefs ->
+            prefs[credentialKey] = json.encodeToString(current.copy(librusPortalToken = portalToken))
+        }
+    }
+
     suspend fun clear() {
         dataStore.edit { it.clear() }
     }

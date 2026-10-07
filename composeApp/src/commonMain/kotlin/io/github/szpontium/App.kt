@@ -24,7 +24,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import io.github.szpontium.di.appModule
+import io.github.szpontium.di.initKoin
 import io.github.szpontium.navigation.Route
 import io.github.szpontium.session.ApiSession
 import io.github.szpontium.session.SessionStorage
@@ -33,18 +33,14 @@ import io.github.szpontium.ui.screen.DashboardScreen
 import io.github.szpontium.ui.screen.LoginScreen
 import io.github.szpontium.ui.screen.SelectStudentsScreen
 import kotlinx.coroutines.launch
-import org.koin.compose.KoinApplication
 import org.koin.compose.koinInject
 
 @Composable
 fun App() {
-    KoinApplication(application = {
-        modules(appModule)
-    }) {
-        SzpontTheme {
-            Surface(modifier = Modifier.fillMaxSize()) {
-                AppNavigation()
-            }
+    remember { initKoin() }
+    SzpontTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            AppNavigation()
         }
     }
 }

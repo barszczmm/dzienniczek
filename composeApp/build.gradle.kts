@@ -73,6 +73,7 @@ kotlin {
             implementation(libs.ktor.okhttp)
             implementation(libs.whyoleg.crypto.jdk)
             implementation(libs.androidx.datastore.preferences.android)
+            implementation(libs.androidx.work.runtime)
             compileOnly(libs.chucker.library)
         }
         iosMain.dependencies {
