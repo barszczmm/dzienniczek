@@ -4,7 +4,6 @@ import io.github.szpontium.platform.createHttpClient
 import io.github.szpontium.session.ApiSession
 import io.github.szpontium.session.SessionStorage
 import io.github.szpontium.session.createSessionDataStore
-import io.github.szpontium.update.UpdateManager
 import io.github.szpontium.viewmodel.AccountViewModel
 import io.github.szpontium.viewmodel.AnnouncementsViewModel
 import io.github.szpontium.viewmodel.DashboardViewModel
@@ -18,7 +17,6 @@ import io.github.szpontium.viewmodel.NotesViewModel
 import io.github.szpontium.viewmodel.SelectStudentsViewModel
 import io.github.szpontium.viewmodel.StartViewModel
 import io.github.szpontium.viewmodel.TimetableViewModel
-import io.github.szpontium.viewmodel.UpdateViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -29,7 +27,6 @@ val appModule = module {
     single { createHttpClient() }
     single { createSessionDataStore() }
     single { SessionStorage(get(), get()) }
-    single { UpdateManager(get(), get()) }
 
     viewModel { LoginViewModel(get(), get(), get()) }
     viewModel { SelectStudentsViewModel(get(), get(), get()) }
@@ -44,5 +41,4 @@ val appModule = module {
     viewModel { MessagesViewModel(get()) }
     viewModel { MessageDetailsViewModel(get()) }
     viewModel { StartViewModel(get()) }
-    viewModel { UpdateViewModel(get(), get()) }
 }
