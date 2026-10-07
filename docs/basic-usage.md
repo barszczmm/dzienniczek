@@ -5,13 +5,13 @@
 Dla eduVULCAN:
 
 ```kotlin
-val api = SzpontHebeCeApi(credential, httpClient)
+val api = DzienniczekHebeCeApi(credential, httpClient)
 ```
 
 Dla Dzienniczek VULCAN:
 
 ```kotlin
-val api = SzpontHebeApi(credential, httpClient)
+val api = DzienniczekHebeApi(credential, httpClient)
 ```
 
 ---

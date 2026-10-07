@@ -1,4 +1,4 @@
-rootProject.name = "Szpontium"
+rootProject.name = "Dzienniczek"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

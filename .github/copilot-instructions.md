@@ -2,7 +2,7 @@
 
 ## Architecture
 - This is a Kotlin Multiplatform mobile app with a single Gradle module: `:composeApp`.
-- Shared logic lives in `composeApp/src/commonMain/kotlin/io/github/szpontium`.
+- Shared logic lives in `composeApp/src/commonMain/kotlin/io/github/barszczmm/dzienniczek`.
 - Platform-specific implementations belong in `composeApp/src/androidMain` and `composeApp/src/iosMain`.
 - Keep boundaries clear:
   - `api/` for remote integrations and protocol details.
@@ -17,13 +17,13 @@
 - Use Kotlin/JVM 11 target conventions already defined in Gradle files.
 
 ## Conventions
-- Use Koin DI patterns from `composeApp/src/commonMain/kotlin/io/github/szpontium/di/AppModule.kt` (`single { ... }`, `viewModel { ... }`).
+- Use Koin DI patterns from `composeApp/src/commonMain/kotlin/io/github/barszczmm/dzienniczek/di/AppModule.kt` (`single { ... }`, `viewModel { ... }`).
 - Use `StateFlow` for long-lived UI state and `Channel`/events for one-off UI actions (see LoginViewModel pattern).
 - Use kotlinx.serialization `@Serializable` models for network payloads.
 - Keep platform HTTP engine differences in `platform/HttpClientFactory.*.kt`; do not hardcode platform engine details in shared business logic.
 
 ## API-Specific Gotchas
-- Treat eduVULCAN and VULCAN Dzienniczek as separate login/registration flows (`SzpontHebeCeApi` vs `SzpontHebeApi`).
+- Treat eduVULCAN and VULCAN Dzienniczek as separate login/registration flows (`DzienniczekHebeCeApi` vs `DzienniczekHebeApi`).
 - Ensure credentials are registered before data calls; missing registration leads to `restUrl not set` failures.
 - Use the announcements endpoint as singular `mobile/announcement/byPupil`.
 - Grades can include decimal JSON values for numerator/denominator; preserve flexible deserialization behavior.

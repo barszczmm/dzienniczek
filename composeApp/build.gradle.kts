@@ -87,15 +87,15 @@ kotlin {
 }
 
 android {
-    namespace = "io.github.szpontium"
+    namespace = "io.github.barszczmm.dzienniczek"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "io.github.szpontium"
+        applicationId = "io.github.barszczmm.dzienniczek"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 4
-        versionName = "0.3.0"
+        versionCode = 1
+        versionName = "0.1.0"
     }
     packaging {
         resources {

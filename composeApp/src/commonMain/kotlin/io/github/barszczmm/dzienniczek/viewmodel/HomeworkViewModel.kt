@@ -1,0 +1,93 @@
+package io.github.barszczmm.dzienniczek.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import io.github.barszczmm.dzienniczek.api.hebe.models.Homework
+import io.github.barszczmm.dzienniczek.session.ApiSession
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+
+data class HomeworkState(
+    val isLoading: Boolean = false,
+    val homework: List<Homework> = emptyList(),
+    val weekStart: LocalDate = mondayOfCurrentWeekHomework(),
+    val error: String? = null
+)
+
+private fun mondayOfCurrentWeekHomework(): LocalDate {
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    val daysFromMonday = (today.dayOfWeek.ordinal - DayOfWeek.MONDAY.ordinal + 7) % 7
+    return today.minus(daysFromMonday, DateTimeUnit.DAY)
+}
+
+class HomeworkViewModel(
+    private val session: ApiSession
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(HomeworkState(isLoading = true))
+    val state: StateFlow<HomeworkState> = _state
+
+    init {
+        viewModelScope.launch {
+            session.activeStudent.collectLatest {
+                loadWeek(_state.value.weekStart)
+            }
+        }
+    }
+
+    fun previousWeek() {
+        val newStart = _state.value.weekStart.minus(7, DateTimeUnit.DAY)
+        loadWeek(newStart)
+    }
+
+    fun nextWeek() {
+        val newStart = _state.value.weekStart.plus(7, DateTimeUnit.DAY)
+        loadWeek(newStart)
+    }
+
+    fun load() {
+        loadWeek(_state.value.weekStart)
+    }
+
+    private fun loadWeek(weekStart: LocalDate) {
+        val account = session.currentAccount
+        val api = session.api
+        if (account == null || api == null) {
+            _state.value = HomeworkState(isLoading = false, weekStart = weekStart)
+            return
+        }
+
+        val weekEnd = weekStart.plus(6, DateTimeUnit.DAY)
+
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, weekStart = weekStart)
+            try {
+                val homework = api.getHomework(
+                    restUrl = account.unit.restUrl,
+                    pupilId = account.pupil.id,
+                    dateFrom = weekStart,
+                    dateTo = weekEnd
+                )
+                _state.value = HomeworkState(
+                    homework = homework.sortedBy { it.deadline },
+                    weekStart = weekStart
+                )
+            } catch (e: Exception) {
+                _state.value = HomeworkState(
+                    weekStart = weekStart,
+                    error = e.message ?: "Błąd ładowania zadań"
+                )
+            }
+        }
+    }
+}

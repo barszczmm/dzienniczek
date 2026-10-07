@@ -19,10 +19,10 @@ Po wygenerowaniu credential musisz je zarejestrować. Metoda rejestracji zależy
 Ta aplikacja używa rejestracji tokenem i PINem. Dane znajdziesz w zakładce *Dostęp mobilny* w module *Uczeń*
 w webowej wersji e-dziennika.
 
-> Użyj `SzpontHebeApi`, a nie `SzpontHebeCeApi`. To drugie jest przeznaczone dla aplikacji eduVULCAN.
+> Użyj `DzienniczekHebeApi`, a nie `DzienniczekHebeCeApi`. To drugie jest przeznaczone dla aplikacji eduVULCAN.
 
 ```kotlin
-val api = SzpontHebeApi(credential, httpClient)
+val api = DzienniczekHebeApi(credential, httpClient)
 
 api.registerByToken(
     securityToken = "<token>",
@@ -61,10 +61,10 @@ val payload: JwtPayload = decodeJWT(token)
 
 Rejestracja:
 
-> Użyj `SzpontHebeCeApi`, a nie `SzpontHebeApi`. To drugie jest przeznaczone dla aplikacji Dzienniczek VULCAN.
+> Użyj `DzienniczekHebeCeApi`, a nie `DzienniczekHebeApi`. To drugie jest przeznaczone dla aplikacji Dzienniczek VULCAN.
 
 ```kotlin
-val api = SzpontHebeCeApi(credential, httpClient)
+val api = DzienniczekHebeCeApi(credential, httpClient)
 
 api.registerByJwt(
     tokens = listOf("<jwt>"),

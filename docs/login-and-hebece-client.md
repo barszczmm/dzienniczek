@@ -52,7 +52,7 @@ Wygenerowane `credential` zawiera parę kluczy RSA, certyfikat X.509 i losowy `d
 ## 3. Rejestracja w Hebe CE i tworzenie klienta
 
 ```kotlin
-val api = SzpontHebeCeApi(credential, httpClient)
+val api = DzienniczekHebeCeApi(credential, httpClient)
 
 // Wybierz jednego tenanta z wyników logowania
 val tenant = result.tenantTokens.keys.first()
@@ -62,7 +62,7 @@ val tokens = result.tenantTokens.values.toList()
 val restUrl: String = api.registerByJwt(tokens, tenant)
 ```
 
-Po `registerByJwt` `credential.restUrl` jest automatycznie ustawione. Wszystkie kolejne wywołania `SzpontApi` będą używały tego adresu.
+Po `registerByJwt` `credential.restUrl` jest automatycznie ustawione. Wszystkie kolejne wywołania `DzienniczekApi` będą używały tego adresu.
 
 ---
 
@@ -76,7 +76,7 @@ val loginResult = helper.login("jan.kowalski", "hasło", "Pixel 9")
 
 val clients = loginResult.tenantTokens.map { (tenant, token) ->
     val credential = RsaCredential.createNew(deviceOs = "Android", deviceModel = "Pixel 9")
-    val api = SzpontHebeCeApi(credential, httpClient)
+    val api = DzienniczekHebeCeApi(credential, httpClient)
     api.registerByJwt(listOf(token), tenant)
     tenant to api
 }.toMap()

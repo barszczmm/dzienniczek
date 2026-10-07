@@ -1,49 +1,24 @@
-# Dzienniczek Szpontniczek
+# Dzienniczek
 
-[![Skala szpontu](https://img.shields.io/badge/szpont_kwantowy-w_skali_szpontu-blue)](https://github.com/szponciciel04/DzienniczekSzpontniczek)
-[![Repo size](https://img.shields.io/github/repo-size/szponciciel04/DzienniczekSzpontniczek)](https://github.com/szponciciel04/DzienniczekSzpontniczek)
-[![Last commit](https://img.shields.io/github/last-commit/szponciciel04/DzienniczekSzpontniczek)](https://github.com/szponciciel04/DzienniczekSzpontniczek/commits)
-[![Issues](https://img.shields.io/github/issues/szponciciel04/DzienniczekSzpontniczek)](https://github.com/szponciciel04/DzienniczekSzpontniczek/issues)
-[![Top language](https://img.shields.io/github/languages/top/szponciciel04/DzienniczekSzpontniczek)](https://github.com/szponciciel04/DzienniczekSzpontniczek)
+Prywatny klient e-dzienników **Librus Synergia** i **eduVulcan** na Androida (Kotlin Multiplatform, Compose).
+Fork projektu [DzienniczekSzpontniczek](https://github.com/szponciciel04/DzienniczekSzpontniczek) (MIT).
 
-Dzienniczek Szpontniczek (codename: Szpontium) to pierwszy w pełni naszponcony client eduVULCAN
+## Funkcje
 
-Projekt został całkowicie przyszponcony w paru promptach przy użyciu Szpont Maszyny z modelem Claude Sonnet 4.6
+- konta Librus i eduVulcan jednocześnie, wielu uczniów na jednym koncie,
+- oceny, plan lekcji, sprawdziany, zadania domowe, frekwencja, uwagi, ogłoszenia,
+- wiadomości – Librus przez darmową wersję webową Synergii, eduVulcan przez `wiadomosci.eduvulcan.pl`,
+- powiadomienia o nowych wiadomościach z pełną treścią (sprawdzanie w tle co 15 minut),
+- automatyczne odnawianie tokenów Librusa.
 
-![Szpont](./artwork/szpont-detected.jpg)
+## Build
 
-## Funkcje aplikacji
+Build uruchamia się ręcznie w GitHub Actions: **Actions → Build → Run workflow** (dowolny branch).
+Gotowy plik `dzienniczek.apk` (wersja debug) jest w sekcji **Artifacts** danego uruchomienia.
 
-Dzienniczek Szpontniczek pozwala korzystać z najważniejszych funkcji e-dziennika VULCAN i eduVULCAN w jednej aplikacji.
+Lokalnie: `./gradlew :composeApp:assembleDebug`
 
-- logowanie i rejestracja urządzenia dla Dzienniczka VULCAN oraz eduVULCAN,
-- podgląd ocen, średnich i podsumowań okresowych,
-- przegląd sprawdzianów, kartkówek i zadań domowych,
-- plan lekcji (w tym zastępstwa) oraz lekcje zaplanowane i zrealizowane,
-- frekwencja wraz ze statystykami miesięcznymi i przedmiotowymi,
-- uwagi, ogłoszenia i wiadomości,
-- informacje o nauczycielach, szkole, wycieczkach, wydarzeniach i dniach wolnych.
+## Uwaga
 
-## Skala Szpontu
-
-<img src="./artwork/szpont-scale.png" alt="Szpont" width="400">
-
-Cały projekt uplasował się na miejscu "Szpont Kwantowy" w Skali Szpontu
-
-## Dokumentacja
-
-Więcej szczegółów znajdziesz w dokumentacji projektu:
-
-- [Getting started](docs/getting-started.md)
-- [Basic usage](docs/basic-usage.md)
-- [Logowanie i klient HebeCE](docs/login-and-hebece-client.md)
-- [Flow logowania eduVULCAN](docs/eduvulcan-login-flow.md)
-- [Prometheus login helper](docs/prometheus-login-helper.md)
-
-UWAGA! ta dokumentacja jest całkowcie przyszponcona przez Szpont Maszynę.
-
-## Podziękowania
-
-Serdeczne podziękowania dla Szpont Maszyny która pozwoliła naszponcić cały ten projekt 
-Dziękujemy aplikacji Szkolny.eu za użycie kodu do działania dziennika Librus.
-
+Aplikacja nie jest powiązana z firmami Librus ani VULCAN i korzysta z ich nieoficjalnych interfejsów.
+Używaj na własną odpowiedzialność, wyłącznie z własnymi danymi logowania.
