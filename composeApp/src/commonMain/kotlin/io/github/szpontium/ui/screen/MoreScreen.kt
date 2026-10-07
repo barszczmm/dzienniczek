@@ -16,7 +16,6 @@ import androidx.compose.material.icons.automirrored.outlined.Announcement
 import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Person
@@ -43,7 +42,6 @@ import io.github.szpontium.session.StudentSession
 import io.github.szpontium.theme.expressiveGroupShape
 import io.github.szpontium.update.getAppVersion
 import io.github.szpontium.viewmodel.AccountViewModel
-import io.github.szpontium.viewmodel.UpdateViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -104,17 +102,10 @@ private fun MoreItem(icon: ImageVector, title: String, shape: Shape, onClick: ()
 fun AccountScreen(
     onLogout: () -> Unit,
     onNavigateToAddAccount: () -> Unit,
-    viewModel: AccountViewModel = koinViewModel(),
-    updateViewModel: UpdateViewModel = koinViewModel()
+    viewModel: AccountViewModel = koinViewModel()
 ) {
     val studentSessions by viewModel.studentSessions.collectAsStateWithLifecycle()
     val activeStudent by viewModel.activeStudent.collectAsStateWithLifecycle()
-    val updateStatus by updateViewModel.status.collectAsStateWithLifecycle()
-
-    UpdateDialog(
-        status = updateStatus,
-        viewModel = updateViewModel
-    )
 
     Column(
         modifier = Modifier
@@ -158,16 +149,12 @@ fun AccountScreen(
         HorizontalDivider()
         Spacer(Modifier.height(12.dp))
 
-        OutlinedButton(
-            onClick = { updateViewModel.checkForUpdates() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Sprawdź aktualizacje (v${getAppVersion()})")
-        }
-
-        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Wersja ${getAppVersion()}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
         OutlinedButton(
             onClick = onNavigateToAddAccount,
