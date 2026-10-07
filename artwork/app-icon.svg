@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#249CF0"/>
+      <stop offset="1" stop-color="#0754D9"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F8FF"/>
+    </linearGradient>
+    <linearGradient id="pencil" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#168AF2"/>
+      <stop offset="1" stop-color="#0758D9"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14D2E5"/>
+      <stop offset="1" stop-color="#008BEA"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#B72CEB"/>
+      <stop offset="1" stop-color="#EF248D"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-opacity=".24"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-opacity=".18"/>
+    </filter>
+    <clipPath id="round">
+      <rect x="18" y="18" width="988" height="988" rx="155"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="18" y="18" width="988" height="988" rx="155" fill="url(#bg)"/>
+
+  <!-- Notebook shadow/backing -->
+  <path d="M151 324 Q156 293 191 281
+           Q369 252 512 300 Q655 252 833 281
+           Q868 293 873 324 L889 752
+           Q890 807 837 829
+           Q663 851 512 828 Q361 851 187 829
+           Q134 807 135 752 Z"
+        fill="#073C9E" opacity=".9" filter="url(#shadow)"/>
+
+  <!-- Left page -->
+  <path d="M185 258
+           Q355 236 512 302
+           L512 807
+           Q365 754 206 784
+           Q181 789 181 748
+           L185 258 Z"
+        fill="url(#paper)" filter="url(#soft)"/>
+
+  <!-- Right page -->
+  <path d="M512 302
+           Q669 236 839 258
+           L843 748
+           Q843 789 818 784
+           Q659 754 512 807 Z"
+        fill="url(#paper)" filter="url(#soft)"/>
+
+  <!-- Page center -->
+  <path d="M512 302 L512 807" stroke="#B8D2F7" stroke-width="7"/>
+
+  <!-- Writing lines -->
+  <g fill="#8EAFE0">
+    <rect x="226" y="352" width="275" height="25" rx="12"/>
+    <rect x="218" y="424" width="283" height="25" rx="12"/>
+    <rect x="211" y="496" width="286" height="25" rx="12"/>
+    <rect x="205" y="568" width="202" height="25" rx="12"/>
+
+    <rect x="534" y="355" width="126" height="25" rx="12"/>
+    <rect x="669" y="355" width="137" height="25" rx="12"/>
+    <rect x="650" y="425" width="157" height="25" rx="12"/>
+    <rect x="539" y="497" width="269" height="25" rx="12"/>
+    <rect x="541" y="569" width="245" height="25" rx="12"/>
+    <rect x="548" y="641" width="152" height="25" rx="12"/>
+  </g>
+
+  <!-- Pencil, angled across right page -->
+  <g transform="rotate(43 760 440)" filter="url(#soft)">
+    <!-- body -->
+    <rect x="687" y="267" width="113" height="340" rx="22" fill="url(#pencil)"
+          stroke="#FFFFFF" stroke-width="12"/>
+    <!-- eraser/end -->
+    <path d="M687 267 Q687 245 709 245 L778 245 Q800 245 800 267
+             L800 304 L687 304 Z"
+          fill="#168AF2" stroke="#FFFFFF" stroke-width="12"/>
+    <!-- tip -->
+    <path d="M687 607 L800 607 L743.5 695 Z"
+          fill="#FFFFFF" stroke="#FFFFFF" stroke-width="8"/>
+    <path d="M718 655 L769 655 L743.5 695 Z" fill="#143E8C"/>
+    <!-- subtle highlight -->
+    <rect x="704" y="319" width="17" height="238" rx="8" fill="#4CA9FF" opacity=".35"/>
+  </g>
+
+  <!-- Linked-service abstract tiles -->
+  <g filter="url(#soft)">
+    <rect x="702" y="690" width="190" height="190" rx="48"
+          fill="url(#cyan)" stroke="#FFFFFF" stroke-width="14"/>
+    <rect x="810" y="778" width="151" height="151" rx="42"
+          fill="url(#pink)" stroke="#FFFFFF" stroke-width="14"/>
+    <!-- overlap cue -->
+    <path d="M810 804 Q850 817 850 858 L850 929
+             L810 929 Z" fill="#3430B7" opacity=".65"/>
+  </g>
+</svg>
