@@ -35,15 +35,21 @@ class MessageDetailsViewModel(
                 try {
                     val librusApi = session.librusApi
                         ?: (session.api as? io.github.szpontium.api.librus.SzpontLibrusAdapterApi)?.librusApi
-                    val content = librusApi?.getMessageContent(id.toIntOrNull() ?: 0) ?: ""
+                        ?: throw IllegalStateException("Brak sesji Librus")
+                    val details = librusApi.getSynergiaMessageDetails(id)
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        content = content.ifBlank { hebeContent ?: "Brak treści wiadomości." }
+                        content = details.content.ifBlank { "Brak treści wiadomości." },
+                        sender = details.sender,
+                        subject = details.subject,
+                        date = details.date
                     )
                 } catch (e: Exception) {
+                    e.printStackTrace()
+                    loadedId = null
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        content = hebeContent ?: "Brak treści wiadomości."
+                        error = e.message ?: "Nie udało się pobrać wiadomości"
                     )
                 }
                 return@launch

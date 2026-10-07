@@ -7,6 +7,8 @@ import io.github.szpontium.api.librus.models.LibrusTokenResponse
 import io.github.szpontium.api.librus.models.api.*
 import com.fleeksoft.ksoup.Ksoup
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -143,81 +145,148 @@ class SzpontLibrusApi(
         return obj["Token"]?.jsonPrimitive?.content ?: error("Failed to get auto login token")
     }
 
-    suspend fun getSynergiaMessages(token: String, tab: io.github.szpontium.viewmodel.MessageTab): List<io.github.szpontium.ui.model.UiMessage> {
-        val folder = when (tab) {
-            io.github.szpontium.viewmodel.MessageTab.RECEIVED -> "5"
-            io.github.szpontium.viewmodel.MessageTab.SENT -> "6"
-            io.github.szpontium.viewmodel.MessageTab.DELETED -> "7"
-        }
-        val loginUrl = "https://synergia.librus.pl/loguj/token/$token/przenies/uczen/widok/wiadomosci/$folder"
-        
-        // This request will set cookies and follow redirects
-        val loginResponse = httpClient.get(loginUrl)
-        val html = loginResponse.bodyAsText()
-        
-        // If the login redirect doesn't lead us directly to the list, try fetching it explicitly
-        val finalHtml = if (!html.contains("decorated stretch")) {
-             httpClient.get("https://synergia.librus.pl/wiadomosci/$folder").bodyAsText()
-        } else html
+    // ------------------------------------------------------------------
+    // Messages from the Synergia web interface (free, unlike the mobile API)
+    // ------------------------------------------------------------------
 
-        val doc = Ksoup.parse(finalHtml)
+    /** Separate client with a cookie jar – Synergia pages work on a session cookie. */
+    private val synergiaClient: HttpClient by lazy {
+        HttpClient {
+            followRedirects = true
+            install(HttpCookies)
+            install(HttpTimeout) {
+                requestTimeoutMillis = 60_000
+                connectTimeoutMillis = 30_000
+            }
+        }
+    }
+    private var synergiaLoggedIn = false
+    private val synergiaMutex = Mutex()
+
+    private fun messagesFolder(tab: io.github.szpontium.viewmodel.MessageTab): String = when (tab) {
+        io.github.szpontium.viewmodel.MessageTab.RECEIVED -> "5"
+        io.github.szpontium.viewmodel.MessageTab.SENT -> "6"
+        io.github.szpontium.viewmodel.MessageTab.DELETED -> "7"
+    }
+
+    /** Opens a Synergia web session using a one-time token from the API. */
+    private suspend fun synergiaLogin(token: String? = null) {
+        val loginToken = token ?: getAutoLoginToken()
+        synergiaClient.get("https://synergia.librus.pl/loguj/token/$loginToken/przenies/uczen/widok/wiadomosci/5").bodyAsText()
+        synergiaLoggedIn = true
+    }
+
+    /** GETs a Synergia page; logs in (again) when there is no session or it expired. */
+    private suspend fun synergiaPage(url: String, isValid: (String) -> Boolean): String = synergiaMutex.withLock {
+        if (!synergiaLoggedIn) synergiaLogin()
+        var html = synergiaClient.get(url).bodyAsText()
+        if (!isValid(html)) {
+            synergiaLogin()
+            html = synergiaClient.get(url).bodyAsText()
+        }
+        html
+    }
+
+    /** Message list of the given folder, with sender, date, unread and attachment flags. */
+    suspend fun getSynergiaMessages(tab: io.github.szpontium.viewmodel.MessageTab): List<io.github.szpontium.ui.model.UiMessage> {
+        val html = synergiaPage("https://synergia.librus.pl/wiadomosci/${messagesFolder(tab)}") { "decorated stretch" in it }
+        return parseSynergiaMessageList(html)
+    }
+
+    /** Variant used with a token obtained by the caller (background checker). */
+    suspend fun getSynergiaMessages(token: String, tab: io.github.szpontium.viewmodel.MessageTab): List<io.github.szpontium.ui.model.UiMessage> {
+        synergiaMutex.withLock { synergiaLogin(token) }
+        return getSynergiaMessages(tab)
+    }
+
+    private fun parseSynergiaMessageList(html: String): List<io.github.szpontium.ui.model.UiMessage> {
+        val doc = Ksoup.parse(html)
         val messages = mutableListOf<io.github.szpontium.ui.model.UiMessage>()
-        
+
         doc.select(".decorated.stretch tbody > tr").forEach { tr ->
             val cells = tr.select("td")
             if (cells.size < 5) return@forEach
-            
+
             val link = cells[3].select("a").first() ?: return@forEach
             val url = link.attr("href")
-            // URL might be /wiadomosci/1/5/12345/f0 or similar
-            val id = "/([0-9]+)/".toRegex().find(url)?.groupValues?.get(1) ?: url.substringAfterLast("/")
+            // URL looks like /wiadomosci/1/5/12345/f0
+            val id = "/([0-9]+)/f".toRegex().find(url)?.groupValues?.get(1)
+                ?: "/([0-9]+)/".toRegex().findAll(url).lastOrNull()?.groupValues?.get(1)
+                ?: url.substringAfterLast("/")
             val subject = link.text().trim()
             val sender = cells[2].text().substringBefore("(").trim()
             val dateStr = cells[4].text().trim()
-            val isRead = !tr.hasClass("unread") && cells[2].attr("style").isBlank()
+            val isUnread = tr.hasClass("unread") || cells.any { it.attr("style").contains("bold") }
             val hasAttachment = cells[1].select("img").isNotEmpty()
-            
-            val date = try {
-                val parts = dateStr.split(" ")
-                val d = LocalDate.parse(parts[0])
-                val t = LocalTime.parse(parts[1])
-                LocalDateTime(d.year, d.month, d.day, t.hour, t.minute)
-            } catch (e: Exception) {
-                null
-            }
-            
+
             messages.add(
                 io.github.szpontium.ui.model.UiMessage(
                     id = id,
                     title = subject,
-                    senderOrRecipient = sender,
-                    date = date,
-                    isUnread = !isRead,
+                    senderOrRecipient = sender.ifBlank { "Nieznany" },
+                    date = parseSynergiaDate(dateStr),
+                    isUnread = isUnread,
                     hasAttachments = hasAttachment
                 )
             )
         }
-        
         return messages
     }
 
-    suspend fun getSynergiaMessageContent(id: String): String {
-        // Try received messages first, then sent if it fails or returns empty
-        val receivedUrl = "https://synergia.librus.pl/wiadomosci/1/5/$id/f0"
-        val sentUrl = "https://synergia.librus.pl/wiadomosci/1/6/$id/f0"
-        
-        var response = httpClient.get(receivedUrl).bodyAsText()
-        var doc = Ksoup.parse(response)
-        var content = doc.select(".container-message-content").html().trim()
-        
-        if (content.isBlank()) {
-            response = httpClient.get(sentUrl).bodyAsText()
-            doc = Ksoup.parse(response)
-            content = doc.select(".container-message-content").html().trim()
+    private fun parseSynergiaDate(text: String): LocalDateTime? = try {
+        val parts = text.trim().split(" ")
+        val d = LocalDate.parse(parts[0])
+        val t = LocalTime.parse(parts.getOrNull(1) ?: "00:00")
+        LocalDateTime(d.year, d.month, d.day, t.hour, t.minute)
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Full message from Synergia: subject, sender, date and plain-text content. */
+    suspend fun getSynergiaMessageDetails(id: String): LibrusWebMessage {
+        val isMessagePage: (String) -> Boolean = { "container-message-content" in it }
+        var html = synergiaPage("https://synergia.librus.pl/wiadomosci/1/5/$id/f0", isMessagePage)
+        if (!isMessagePage(html)) {
+            html = synergiaPage("https://synergia.librus.pl/wiadomosci/1/6/$id/f0", isMessagePage)
+        }
+        val doc = Ksoup.parse(html)
+
+        // Header rows: "Nadawca" / "Odbiorca", "Temat", "Wysłano"
+        val header = mutableMapOf<String, String>()
+        doc.select("tr").forEach { tr ->
+            val cells = tr.select("td, th")
+            if (cells.size >= 2) {
+                val label = cells[0].text().trim().removeSuffix(":").lowercase()
+                if (label in listOf("nadawca", "odbiorca", "temat", "wysłano", "data wysłania")) {
+                    header.putIfAbsent(label, cells[1].text().trim())
+                }
+            }
         }
 
-        // Strip HTML tags for simple view, or keep if we want rich text
-        return content.replace("<br>", "\n").replace("<[^>]*>".toRegex(), "").trim()
+        val contentHtml = doc.select(".container-message-content").html()
+        return LibrusWebMessage(
+            subject = header["temat"],
+            sender = (header["nadawca"] ?: header["odbiorca"])?.substringBefore("(")?.trim(),
+            date = header["wysłano"] ?: header["data wysłania"],
+            content = htmlToText(contentHtml)
+        )
+    }
+
+    /** Plain-text content of a message (used by the background checker). */
+    suspend fun getSynergiaMessageContent(id: String): String = getSynergiaMessageDetails(id).content
+
+    private fun htmlToText(html: String): String {
+        if (html.isBlank()) return ""
+        val withBreaks = html
+            .replace(Regex("\\s*[\\r\\n]+\\s*"), " ")
+            .replace(Regex("(?i)<br\\s*/?>"), "\n")
+            .replace(Regex("(?i)</p>"), "\n\n")
+            .replace(Regex("(?i)</div>"), "\n")
+        return Ksoup.parse(withBreaks).body().wholeText()
+            .replace('\u00A0', ' ')
+            .lines().joinToString("\n") { it.trimEnd() }
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
     }
 
     suspend fun getGrades(): List<LibrusGrade> {
@@ -297,3 +366,11 @@ class SzpontLibrusApi(
         return json.decodeFromString<LibrusClassroomsResponse>(responseText).classrooms
     }
 }
+
+/** A message read from the Synergia web interface. */
+data class LibrusWebMessage(
+    val subject: String?,
+    val sender: String?,
+    val date: String?,
+    val content: String
+)

@@ -2,7 +2,6 @@ package io.github.szpontium.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.szpontium.api.librus.LibrusMapper
 import io.github.szpontium.api.librus.SzpontLibrusAdapterApi
 import io.github.szpontium.api.prometheus.models.VulcanMailboxName
 import io.github.szpontium.session.ApiSession
@@ -63,8 +62,9 @@ class MessagesViewModel(
                     val librusApi = session.librusApi
                         ?: (api as? SzpontLibrusAdapterApi)?.librusApi
                     if (librusApi != null) {
-                        val lMessages = librusApi.getMessages()
-                        val uiMessages = LibrusMapper.mapMessages(lMessages)
+                        // Synergia web inbox: complete list with sender and date (the mobile API
+                        // returns only part of the messages and needs a paid add-on).
+                        val uiMessages = librusApi.getSynergiaMessages(currentTab)
                         _state.value = _state.value.copy(isLoading = false, messages = uiMessages)
                         return@launch
                     }
