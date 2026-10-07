@@ -97,6 +97,25 @@ class SessionStorage(
         return true
     }
 
+    /** All stored students (eduVulcan and Librus), used by the background message checker. */
+    suspend fun loadStudents(): List<StudentSession> = loadStoredSessions()
+
+    /** Saves new Librus tokens of one student without touching the rest of the stored list. */
+    suspend fun updateLibrusTokens(studentId: String, portalToken: String, apiToken: String) {
+        dataStore.edit { prefs ->
+            val multiJson = prefs[multiStudentsKey] ?: return@edit
+            val stored = runCatching {
+                json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson)
+            }.getOrNull() ?: return@edit
+            val updated = stored.map { s ->
+                if (s.id == studentId && s.librus != null) {
+                    s.copy(librus = s.librus.copy(portalToken = portalToken, apiToken = apiToken))
+                } else s
+            }
+            prefs[multiStudentsKey] = json.encodeToString(ListSerializer(StoredStudentSession.serializer()), updated)
+        }
+    }
+
     suspend fun clear() {
         dataStore.edit { it.clear() }
     }

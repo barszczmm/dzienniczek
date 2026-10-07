@@ -1,5 +1,6 @@
 package io.github.szpontium.di
 
+import io.github.szpontium.notifications.MessageChecker
 import io.github.szpontium.platform.createHttpClient
 import io.github.szpontium.session.ApiSession
 import io.github.szpontium.session.SessionStorage
@@ -27,6 +28,7 @@ val appModule = module {
     single { createHttpClient() }
     single { createSessionDataStore() }
     single { SessionStorage(get(), get()) }
+    single { MessageChecker(get(), get()) }
 
     viewModel { LoginViewModel(get(), get(), get()) }
     viewModel { SelectStudentsViewModel(get(), get(), get()) }

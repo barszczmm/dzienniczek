@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.szpontium.navigation.Route
+import io.github.szpontium.notifications.triggerMessageCheckNow
 import io.github.szpontium.session.StudentSession
 import io.github.szpontium.theme.expressiveGroupShape
 import io.github.szpontium.update.getAppVersion
@@ -155,6 +156,17 @@ fun AccountScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+
+        OutlinedButton(
+            onClick = { triggerMessageCheckNow() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(imageVector = Icons.AutoMirrored.Outlined.Message, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Sprawdź nowe wiadomości teraz")
+        }
+
+        Spacer(Modifier.height(8.dp))
 
         OutlinedButton(
             onClick = onNavigateToAddAccount,
