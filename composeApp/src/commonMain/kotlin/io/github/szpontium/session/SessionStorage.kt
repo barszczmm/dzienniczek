@@ -97,42 +97,22 @@ class SessionStorage(
         return true
     }
 
-    /** EduVulcan student sessions as stored on disk (used by the background message checker). */
-    suspend fun loadVulcanStudents(): List<StudentSession> {
-        val multiJson = dataStore.data.first()[multiStudentsKey] ?: return emptyList()
-        return try {
-            json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson).map { s ->
-                StudentSession(
-                    id = s.id,
-                    account = s.account,
-                    credential = s.credential.toRsaCredential(),
-                    restUrl = s.restUrl,
-                    prometheusLogin = s.prometheusLogin,
-                    prometheusPassword = s.prometheusPassword,
-                    prometheusTenant = s.prometheusTenant,
-                    isEnabled = s.isEnabled,
-                    httpClient = httpClient
-                )
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
+    /** All stored students (eduVulcan and Librus), used by the background message checker. */
+    suspend fun loadStudents(): List<StudentSession> = loadStoredSessions()
 
-    /** Stored Librus credential, or null when no Librus account is logged in. */
-    suspend fun loadLibrusCredential(): StoredCredential? {
-        val credentialJson = dataStore.data.first()[credentialKey] ?: return null
-        return try {
-            json.decodeFromString<StoredCredential>(credentialJson).takeIf { it.apiType == "librus" }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    suspend fun updateLibrusPortalToken(portalToken: String) {
-        val current = loadLibrusCredential() ?: return
+    /** Saves new Librus tokens of one student without touching the rest of the stored list. */
+    suspend fun updateLibrusTokens(studentId: String, portalToken: String, apiToken: String) {
         dataStore.edit { prefs ->
-            prefs[credentialKey] = json.encodeToString(current.copy(librusPortalToken = portalToken))
+            val multiJson = prefs[multiStudentsKey] ?: return@edit
+            val stored = runCatching {
+                json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson)
+            }.getOrNull() ?: return@edit
+            val updated = stored.map { s ->
+                if (s.id == studentId && s.librus != null) {
+                    s.copy(librus = s.librus.copy(portalToken = portalToken, apiToken = apiToken))
+                } else s
+            }
+            prefs[multiStudentsKey] = json.encodeToString(ListSerializer(StoredStudentSession.serializer()), updated)
         }
     }
 

@@ -4,7 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import io.github.szpontium.api.librus.LibrusLoginHelper
+import io.github.szpontium.api.librus.LibrusTokenRefresher
 import io.github.szpontium.api.librus.SzpontLibrusApi
 import io.github.szpontium.api.prometheus.PrometheusMessagesApi
 import io.github.szpontium.api.prometheus.models.VulcanMailboxName
@@ -59,7 +59,10 @@ class MessageChecker(
     // ---------------------------------------------------------------- Librus
 
     private suspend fun checkLibrus(out: MutableList<NewMessage>) {
-        val credential = sessionStorage.loadLibrusCredential() ?: return
+        val students = sessionStorage.loadStudents()
+            .filter { it.isEnabled && it.isLibrus }
+            .distinctBy { it.librus!!.synergiaAccount.login }
+        if (students.isEmpty()) return
 
         // Dedicated client with a cookie jar: Synergia web pages need the session cookie
         // set by the auto-login redirect.
@@ -72,24 +75,23 @@ class MessageChecker(
             }
         }
         try {
-            val api = SzpontLibrusApi(client, portalAccessToken = credential.librusPortalToken)
-
-            val accounts = try {
-                api.getSynergiaAccounts()
-            } catch (e: Exception) {
-                // Portal token expired: log in again with the stored e-mail and password.
-                val email = credential.librusEmail ?: throw e
-                val password = credential.librusPassword ?: throw e
-                val newToken = LibrusLoginHelper().login(email, password).accessToken
-                sessionStorage.updateLibrusPortalToken(newToken)
-                api.portalAccessToken = newToken
-                api.getSynergiaAccounts()
-            }
-
-            for (account in accounts) {
+            for (student in students) {
                 runCatching {
-                    api.apiAccessToken = runCatching { api.getFreshApiToken(account.login) }
-                        .getOrNull() ?: account.accessToken
+                    val credential = student.librus!!
+                    val account = credential.synergiaAccount
+                    val api = SzpontLibrusApi(
+                        httpClient = client,
+                        portalAccessToken = credential.portalToken,
+                        apiAccessToken = credential.apiToken,
+                        tokenRefresher = LibrusTokenRefresher(
+                            email = credential.email,
+                            password = credential.password,
+                            synergiaLogin = account.login
+                        ) { portalToken, apiToken ->
+                            sessionStorage.updateLibrusTokens(student.id, portalToken, apiToken)
+                        }
+                    )
+
                     val autoLoginToken = api.getAutoLoginToken()
                     val messages = api.getSynergiaMessages(autoLoginToken, MessageTab.RECEIVED)
 
@@ -117,7 +119,7 @@ class MessageChecker(
     // -------------------------------------------------------------- eduVulcan
 
     private suspend fun checkVulcan(out: MutableList<NewMessage>) {
-        val students = sessionStorage.loadVulcanStudents().filter { it.isEnabled }
+        val students = sessionStorage.loadStudents().filter { it.isEnabled && !it.isLibrus }
         if (students.isEmpty()) return
 
         // One web login usually covers several children (one mailbox per child),
