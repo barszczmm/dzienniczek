@@ -64,11 +64,13 @@ class SelectStudentsViewModel(
                     )
                 }
 
-                session.addStudentSessions(newSessions)
-                
-                // Save all active sessions to DataStore
+                // Keep already logged-in (e.g. Librus) students and switch to the new one.
+                val selectId = newSessions.firstOrNull()?.id
+                session.addStudentSessions(newSessions, selectId = selectId)
+
+                // Save all sessions to DataStore
                 val currentSessions = session.studentSessions.value
-                val activeId = session.activeStudent.value?.id ?: newSessions.firstOrNull()?.id
+                val activeId = session.activeStudent.value?.id ?: selectId
                 sessionStorage.saveStudents(currentSessions, activeId)
 
                 onSuccess()

@@ -8,12 +8,12 @@ import io.github.szpontium.api.hebe.credentials.RsaCredential
 import io.github.szpontium.api.hebe.models.Account
 import io.github.szpontium.api.librus.LibrusLoginHelper
 import io.github.szpontium.api.librus.LibrusMapper
-import io.github.szpontium.api.librus.SzpontLibrusAdapterApi
 import io.github.szpontium.api.librus.SzpontLibrusApi
 import io.github.szpontium.api.prometheus.PrometheusLoginHelper
 import io.github.szpontium.navigation.CandidateStudent
 import io.github.szpontium.session.ApiSession
 import io.github.szpontium.session.SessionStorage
+import io.github.szpontium.session.LibrusStudentCredential
 import io.github.szpontium.session.StudentSession
 import io.github.szpontium.session.toStoredRsaCredential
 import io.ktor.client.HttpClient
@@ -135,8 +135,8 @@ class LoginViewModel(
                     tenant = symbol.trim()
                 )
                 val accounts = api.getAccounts()
-                session.setup(api, accounts)
                 sessionStorage.save("hebe", credential, accounts)
+                sessionStorage.restore(session)
                 _events.send(LoginEvent.Success)
             } catch (e: Exception) {
                 _events.send(LoginEvent.Error(e.message ?: "Błąd rejestracji"))
@@ -171,33 +171,38 @@ class LoginViewModel(
                     return@launch
                 }
 
-                val firstAccount = synergiaAccounts.first()
-                val apiToken = firstAccount.accessToken ?: librusApi.getFreshApiToken(firstAccount.login)
-                librusApi.apiAccessToken = apiToken
-
-                val me = librusApi.getMe()
-                val accounts = synergiaAccounts.map { sAcc ->
-                    LibrusMapper.toHebeAccount(sAcc, me)
+                // One student session per Synergia account (child), each with its own API token.
+                val newSessions = synergiaAccounts.map { synergia ->
+                    val studentApi = SzpontLibrusApi(
+                        httpClient = httpClient,
+                        portalAccessToken = portalToken
+                    )
+                    val apiToken = runCatching { studentApi.getFreshApiToken(synergia.login) }.getOrNull()
+                        ?: synergia.accessToken
+                        ?: error("Nie udało się pobrać tokenu dla konta ${synergia.studentName}")
+                    studentApi.apiAccessToken = apiToken
+                    val me = studentApi.getMe()
+                    StudentSession(
+                        id = StudentSession.librusId(synergia),
+                        account = LibrusMapper.toHebeAccount(synergia, me),
+                        credential = null,
+                        restUrl = "librus",
+                        isEnabled = true,
+                        httpClient = httpClient,
+                        librus = LibrusStudentCredential(
+                            email = email.trim(),
+                            password = password,
+                            portalToken = portalToken,
+                            apiToken = apiToken,
+                            synergiaAccount = synergia
+                        )
+                    )
                 }
 
-                val adapterApi = SzpontLibrusAdapterApi(
-                    librusApi = librusApi,
-                    currentSynergiaAccount = firstAccount,
-                    httpClient = httpClient
-                )
-                session.setup(adapterApi, accounts)
-                session.librusApi = librusApi
-                session.librusAccounts = synergiaAccounts
-                session.librusPortalToken = portalToken
-
-                sessionStorage.saveLibrus(
-                    email = email.trim(),
-                    password = password,
-                    portalToken = portalToken,
-                    apiToken = apiToken,
-                    accounts = accounts,
-                    synergiaAccounts = synergiaAccounts
-                )
+                // Keep already logged-in (e.g. eduVulcan) students and switch to the new one.
+                val selectId = newSessions.first().id
+                session.addStudentSessions(newSessions, selectId = selectId)
+                sessionStorage.saveStudents(session.studentSessions.value, selectId)
 
                 _events.send(LoginEvent.Success)
             } catch (e: Exception) {

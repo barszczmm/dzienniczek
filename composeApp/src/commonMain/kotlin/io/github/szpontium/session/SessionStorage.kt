@@ -4,12 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import io.github.szpontium.api.hebe.SzpontHebeApi
-import io.github.szpontium.api.hebe.SzpontHebeCeApi
 import io.github.szpontium.api.hebe.credentials.RsaCredential
 import io.github.szpontium.api.hebe.models.Account
-import io.github.szpontium.api.librus.SzpontLibrusAdapterApi
-import io.github.szpontium.api.librus.SzpontLibrusApi
 import io.github.szpontium.api.librus.models.LibrusSynergiaAccount
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.first
@@ -18,6 +14,10 @@ import kotlinx.serialization.json.Json
 
 private val json = Json { ignoreUnknownKeys = true }
 
+/**
+ * Persists all logged-in students (eduVulcan and Librus) as one list, so accounts from
+ * both journals can be used at the same time.
+ */
 class SessionStorage(
     private val dataStore: DataStore<Preferences>,
     private val httpClient: HttpClient
@@ -25,7 +25,7 @@ class SessionStorage(
     private val multiStudentsKey = stringPreferencesKey("session_multi_students")
     private val activeStudentIdKey = stringPreferencesKey("session_active_student_id")
 
-    // Legacy keys for migration / fallback
+    // Legacy single-account keys, migrated into the student list on restore.
     private val credentialKey = stringPreferencesKey("session_credential")
     private val accountsKey = stringPreferencesKey("session_accounts")
 
@@ -48,6 +48,7 @@ class SessionStorage(
         }
     }
 
+    /** Adds Vulcan students registered with a Hebe credential to the stored list. */
     suspend fun save(
         apiType: String,
         credential: RsaCredential,
@@ -70,171 +71,30 @@ class SessionStorage(
                 httpClient = httpClient
             )
         }
-        
-        // Merge with existing student sessions if any
-        val prefs = dataStore.data.first()
-        val existingJson = prefs[multiStudentsKey]
-        val existing: List<StudentSession> = if (!existingJson.isNullOrBlank()) {
-            try {
-                val stored = json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), existingJson)
-                stored.map { s ->
-                    StudentSession(
-                        id = s.id,
-                        account = s.account,
-                        credential = s.credential.toRsaCredential(),
-                        restUrl = s.restUrl,
-                        prometheusLogin = s.prometheusLogin,
-                        prometheusPassword = s.prometheusPassword,
-                        prometheusTenant = s.prometheusTenant,
-                        isEnabled = s.isEnabled,
-                        httpClient = httpClient
-                    )
-                }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
 
-        val mergedMap = existing.associateBy { it.id }.toMutableMap()
+        val mergedMap = loadStoredSessions().associateBy { it.id }.toMutableMap()
         newSessions.forEach { mergedMap[it.id] = it }
-        val mergedList = mergedMap.values.toList()
-
-        val activeId = newSessions.firstOrNull()?.id ?: prefs[activeStudentIdKey]
-        saveStudents(mergedList, activeId)
-    }
-
-    suspend fun saveLibrus(
-        email: String,
-        password: String,
-        portalToken: String,
-        apiToken: String,
-        accounts: List<Account>,
-        synergiaAccounts: List<LibrusSynergiaAccount>
-    ) {
-        val stored = StoredCredential(
-            apiType = "librus",
-            type = "librus",
-            restUrl = "librus",
-            certificate = "",
-            privateKey = "",
-            fingerprint = "",
-            notificationToken = null,
-            deviceId = "librus",
-            deviceOs = "Android",
-            deviceModel = "LibrusClient",
-            librusEmail = email,
-            librusPassword = password,
-            librusPortalToken = portalToken,
-            librusApiToken = apiToken,
-            librusAccountsJson = json.encodeToString(synergiaAccounts)
-        )
-        dataStore.edit { prefs ->
-            prefs[credentialKey] = json.encodeToString(stored)
-            prefs[accountsKey] = json.encodeToString(ListSerializer(Account.serializer()), accounts)
-        }
+        saveStudents(mergedMap.values.toList(), newSessions.firstOrNull()?.id)
     }
 
     suspend fun restore(session: ApiSession): Boolean {
         val prefs = dataStore.data.first()
+        val sessions = loadStoredSessions().toMutableList()
 
-        // 1. Check for multi-student EduVulcan sessions
-        val multiJson = prefs[multiStudentsKey]
-        if (!multiJson.isNullOrBlank()) {
-            return try {
-                val storedSessions = json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson)
-                if (storedSessions.isEmpty()) return false
-
-                val activeId = prefs[activeStudentIdKey]
-                val sessions = storedSessions.map { s ->
-                    StudentSession(
-                        id = s.id,
-                        account = s.account,
-                        credential = s.credential.toRsaCredential(),
-                        restUrl = s.restUrl,
-                        prometheusLogin = s.prometheusLogin,
-                        prometheusPassword = s.prometheusPassword,
-                        prometheusTenant = s.prometheusTenant,
-                        isEnabled = s.isEnabled,
-                        httpClient = httpClient
-                    )
-                }
-                session.setStudentSessions(sessions, activeId)
-                true
-            } catch (e: Exception) {
-                false
+        // Migrate an account saved by older versions (one Librus or Vulcan login).
+        val migrated = migrateLegacyCredential(prefs)
+        if (migrated.isNotEmpty()) {
+            migrated.forEach { m -> if (sessions.none { it.id == m.id }) sessions += m }
+            saveStudents(sessions, prefs[activeStudentIdKey] ?: sessions.firstOrNull()?.id)
+            dataStore.edit {
+                it.remove(credentialKey)
+                it.remove(accountsKey)
             }
         }
 
-        // 2. Migration / Fallback for single-account credential
-        val credentialJson = prefs[credentialKey] ?: return false
-        val accountsJson = prefs[accountsKey] ?: return false
-        return try {
-            val stored = json.decodeFromString<StoredCredential>(credentialJson)
-            val accounts = json.decodeFromString(ListSerializer(Account.serializer()), accountsJson)
-
-            if (stored.apiType == "librus") {
-                val portalToken = stored.librusPortalToken ?: return false
-                val apiToken = stored.librusApiToken ?: return false
-                val synergiaAccounts: List<LibrusSynergiaAccount> =
-                    stored.librusAccountsJson?.let { json.decodeFromString(it) } ?: emptyList()
-                val firstAccount = synergiaAccounts.firstOrNull() ?: return false
-                
-                val librusApi = SzpontLibrusApi(
-                    httpClient = httpClient,
-                    portalAccessToken = portalToken,
-                    apiAccessToken = apiToken
-                )
-                val adapter = SzpontLibrusAdapterApi(
-                    librusApi = librusApi,
-                    currentSynergiaAccount = firstAccount,
-                    httpClient = httpClient
-                )
-                session.setup(adapter, accounts)
-                session.librusApi = librusApi
-                session.librusAccounts = synergiaAccounts
-                session.librusPortalToken = portalToken
-                return true
-            }
-
-            val credential = RsaCredential(
-                type = stored.type,
-                restUrl = stored.restUrl,
-                certificate = stored.certificate,
-                privateKey = stored.privateKey,
-                fingerprint = stored.fingerprint,
-                notificationToken = stored.notificationToken,
-                deviceId = stored.deviceId,
-                deviceOs = stored.deviceOs,
-                deviceModel = stored.deviceModel
-            )
-
-            if (stored.prometheusLogin == null || stored.prometheusPassword == null || stored.prometheusTenant == null) {
-                return false
-            }
-
-            // Migrate single credential into multi-student session
-            val restUrl = credential.restUrl ?: ""
-            val migratedSessions = accounts.map { account ->
-                StudentSession(
-                    id = StudentSession.generateId(account),
-                    account = account,
-                    credential = credential,
-                    restUrl = restUrl,
-                    prometheusLogin = stored.prometheusLogin,
-                    prometheusPassword = stored.prometheusPassword,
-                    prometheusTenant = stored.prometheusTenant,
-                    isEnabled = true,
-                    httpClient = httpClient
-                )
-            }
-            session.setStudentSessions(migratedSessions)
-            saveStudents(migratedSessions, migratedSessions.firstOrNull()?.id)
-            true
-        } catch (e: Exception) {
-            false
-        }
+        if (sessions.isEmpty()) return false
+        session.setStudentSessions(sessions, prefs[activeStudentIdKey])
+        return true
     }
 
     /** EduVulcan student sessions as stored on disk (used by the background message checker). */
@@ -278,5 +138,86 @@ class SessionStorage(
 
     suspend fun clear() {
         dataStore.edit { it.clear() }
+    }
+
+    private suspend fun loadStoredSessions(): List<StudentSession> {
+        val multiJson = dataStore.data.first()[multiStudentsKey]
+        if (multiJson.isNullOrBlank()) return emptyList()
+        return try {
+            json.decodeFromString(ListSerializer(StoredStudentSession.serializer()), multiJson)
+                .mapNotNull { stored ->
+                    runCatching { StudentSession.fromStored(stored, httpClient) }.getOrNull()
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun migrateLegacyCredential(prefs: Preferences): List<StudentSession> {
+        val credentialJson = prefs[credentialKey] ?: return emptyList()
+        val accountsJson = prefs[accountsKey] ?: return emptyList()
+        return try {
+            val stored = json.decodeFromString<StoredCredential>(credentialJson)
+            val accounts = json.decodeFromString(ListSerializer(Account.serializer()), accountsJson)
+
+            if (stored.apiType == "librus") {
+                val email = stored.librusEmail ?: return emptyList()
+                val password = stored.librusPassword ?: return emptyList()
+                val portalToken = stored.librusPortalToken ?: return emptyList()
+                val apiToken = stored.librusApiToken ?: return emptyList()
+                val synergiaAccounts: List<LibrusSynergiaAccount> =
+                    stored.librusAccountsJson?.let { json.decodeFromString(it) } ?: emptyList()
+
+                synergiaAccounts.mapIndexedNotNull { index, synergia ->
+                    val account = accounts.getOrNull(index) ?: return@mapIndexedNotNull null
+                    StudentSession(
+                        id = StudentSession.librusId(synergia),
+                        account = account,
+                        credential = null,
+                        restUrl = "librus",
+                        isEnabled = true,
+                        httpClient = httpClient,
+                        librus = LibrusStudentCredential(
+                            email = email,
+                            password = password,
+                            portalToken = portalToken,
+                            apiToken = if (index == 0) apiToken else synergia.accessToken ?: apiToken,
+                            synergiaAccount = synergia
+                        )
+                    )
+                }
+            } else {
+                if (stored.prometheusLogin == null || stored.prometheusPassword == null || stored.prometheusTenant == null) {
+                    return emptyList()
+                }
+                val credential = RsaCredential(
+                    type = stored.type,
+                    restUrl = stored.restUrl,
+                    certificate = stored.certificate,
+                    privateKey = stored.privateKey,
+                    fingerprint = stored.fingerprint,
+                    notificationToken = stored.notificationToken,
+                    deviceId = stored.deviceId,
+                    deviceOs = stored.deviceOs,
+                    deviceModel = stored.deviceModel
+                )
+                val restUrl = credential.restUrl ?: ""
+                accounts.map { account ->
+                    StudentSession(
+                        id = StudentSession.generateId(account),
+                        account = account,
+                        credential = credential,
+                        restUrl = restUrl,
+                        prometheusLogin = stored.prometheusLogin,
+                        prometheusPassword = stored.prometheusPassword,
+                        prometheusTenant = stored.prometheusTenant,
+                        isEnabled = true,
+                        httpClient = httpClient
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 }

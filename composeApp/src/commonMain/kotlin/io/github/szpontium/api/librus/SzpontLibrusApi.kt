@@ -12,9 +12,13 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -25,20 +29,87 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * Re-authenticates a Librus student when its API token expires: first with a fresh API
+ * token from the portal token, and when that one expired too, by logging in again with
+ * the stored e-mail and password. [onRefreshed] receives the new portal and API tokens.
+ */
+class LibrusTokenRefresher(
+    val email: String,
+    val password: String,
+    val synergiaLogin: String,
+    val onRefreshed: suspend (portalToken: String, apiToken: String) -> Unit = { _, _ -> }
+)
+
 class SzpontLibrusApi(
     private val httpClient: HttpClient,
     var portalAccessToken: String? = null,
-    var apiAccessToken: String? = null
+    var apiAccessToken: String? = null,
+    var tokenRefresher: LibrusTokenRefresher? = null
 ) {
+    private val refreshMutex = Mutex()
+
+    private suspend fun apiRequest(post: Boolean, url: String): HttpResponse {
+        val token = apiAccessToken
+        return if (post) {
+            httpClient.post(url) { header("Authorization", "Bearer $token") }
+        } else {
+            httpClient.get(url) { header("Authorization", "Bearer $token") }
+        }
+    }
+
+    /** Request to api.librus.pl; on an expired token refreshes it once and retries. */
+    private suspend fun apiCall(post: Boolean, url: String): String {
+        val tokenUsed = apiAccessToken
+        val response = apiRequest(post, url)
+        val body = response.bodyAsText()
+        if (!isAuthError(response.status, body) || tokenRefresher == null) return body
+
+        refreshTokens(tokenUsed)
+        return apiRequest(post, url).bodyAsText()
+    }
+
+    private suspend fun apiGet(url: String): String = apiCall(post = false, url = url)
+
+    private suspend fun apiPost(url: String): String = apiCall(post = true, url = url)
+
+    private suspend fun portalGet(url: String): String =
+        httpClient.get(url) {
+            header("Authorization", "Bearer $portalAccessToken")
+            header("X-Requested-With", LibrusConstants.HEADER)
+        }.bodyAsText()
+
+    private fun isAuthError(status: HttpStatusCode, body: String): Boolean =
+        status == HttpStatusCode.Unauthorized ||
+            (status == HttpStatusCode.Forbidden && "Token" in body) ||
+            "TokenIsExpired" in body ||
+            "Access token is invalid" in body
+
+    /**
+     * Gets a new API token. [expiredToken] is the token that just failed: when another
+     * coroutine already replaced it, nothing has to be done.
+     */
+    suspend fun refreshTokens(expiredToken: String? = apiAccessToken) = refreshMutex.withLock {
+        val refresher = tokenRefresher ?: return@withLock
+        if (apiAccessToken != expiredToken) return@withLock
+
+        val fromPortal = runCatching { getFreshApiToken(refresher.synergiaLogin) }.getOrNull()
+        val newApiToken = fromPortal ?: run {
+            val newPortalToken = LibrusLoginHelper().login(refresher.email, refresher.password).accessToken
+            portalAccessToken = newPortalToken
+            getFreshApiToken(refresher.synergiaLogin)
+        }
+        apiAccessToken = newApiToken
+        refresher.onRefreshed(portalAccessToken ?: "", newApiToken)
+    }
+
     private val json = Json { 
         ignoreUnknownKeys = true 
         coerceInputValues = true
     }
 
     suspend fun getMe(): LibrusMeResponse {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Me") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Me")
         return json.decodeFromString(responseText)
     }
 
@@ -47,10 +118,7 @@ class SzpontLibrusApi(
      * Uses Portal API (portal.librus.pl/api)
      */
     suspend fun getSynergiaAccounts(): List<LibrusSynergiaAccount> {
-        val responseText = httpClient.get("https://portal.librus.pl/api/v3/SynergiaAccounts") {
-            header("Authorization", "Bearer $portalAccessToken")
-            header("X-Requested-With", LibrusConstants.HEADER)
-        }.bodyAsText()
+        val responseText = portalGet("https://portal.librus.pl/api/v3/SynergiaAccounts")
         return json.decodeFromString<LibrusAccountsResponse>(responseText).accounts
     }
 
@@ -58,26 +126,19 @@ class SzpontLibrusApi(
      * Exchanges portal token for API token for a specific synergia account.
      */
     suspend fun getFreshApiToken(accountLogin: String): String {
-        val responseText = httpClient.get("https://portal.librus.pl/api/v3/SynergiaAccounts/fresh/$accountLogin") {
-            header("Authorization", "Bearer $portalAccessToken")
-            header("X-Requested-With", LibrusConstants.HEADER)
-        }.bodyAsText()
+        val responseText = portalGet("https://portal.librus.pl/api/v3/SynergiaAccounts/fresh/$accountLogin")
         val obj = json.parseToJsonElement(responseText).jsonObject
         return obj["accessToken"]?.jsonPrimitive?.content ?: error("Failed to get fresh API token")
     }
 
     suspend fun getLuckyNumber(): Int {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/LuckyNumbers") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/LuckyNumbers")
         val obj = json.parseToJsonElement(responseText).jsonObject
         return obj["LuckyNumber"]?.jsonObject?.get("LuckyNumber")?.jsonPrimitive?.int ?: 0
     }
 
     suspend fun getAutoLoginToken(): String {
-        val responseText = httpClient.post("${LibrusConstants.API_URL}/AutoLoginToken") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiPost("${LibrusConstants.API_URL}/AutoLoginToken")
         val obj = json.parseToJsonElement(responseText).jsonObject
         return obj["Token"]?.jsonPrimitive?.content ?: error("Failed to get auto login token")
     }
@@ -160,23 +221,17 @@ class SzpontLibrusApi(
     }
 
     suspend fun getGrades(): List<LibrusGrade> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Grades") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Grades")
         return json.decodeFromString<LibrusGradesResponse>(responseText).grades
     }
 
     suspend fun getGradeCategories(): List<LibrusGradeCategory> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Grades/Categories") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Grades/Categories")
         return json.decodeFromString<LibrusGradeCategoriesResponse>(responseText).categories
     }
 
     suspend fun getAverages(): Map<String, String> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Grades/Averages") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Grades/Averages")
         return try {
             val obj = json.parseToJsonElement(responseText).jsonObject
             val averages = obj["Averages"]?.jsonObject ?: return emptyMap()
@@ -187,80 +242,58 @@ class SzpontLibrusApi(
     }
 
     suspend fun getHomework(): List<LibrusHomeWorkAssignment> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/HomeWorkAssignments") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/HomeWorkAssignments")
         return json.decodeFromString<LibrusHomeWorkAssignmentsResponse>(responseText).assignments ?: emptyList()
     }
 
     suspend fun getEvents(): List<LibrusEvent> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/HomeWorks") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/HomeWorks")
         return json.decodeFromString<LibrusHomeWorksResponse>(responseText).homeWorks ?: emptyList()
     }
 
     suspend fun getEventCategories(): List<LibrusIdNameReference> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/HomeWorks/Categories") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/HomeWorks/Categories")
         return json.decodeFromString<LibrusHomeWorksCategoriesResponse>(responseText).categories
     }
 
     suspend fun getTimetable(weekStart: LocalDate): Map<String, List<List<LibrusLesson>>> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Timetables?weekStart=$weekStart") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Timetables?weekStart=$weekStart")
         return json.decodeFromString<LibrusTimetableResponse>(responseText).timetable
     }
 
     suspend fun getMessages(): List<LibrusMessage> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Messages") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Messages")
         return json.decodeFromString<LibrusMessagesResponse>(responseText).messages ?: emptyList()
     }
 
     suspend fun getMessageContent(id: Int): String {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Messages/$id") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Messages/$id")
         val obj = json.parseToJsonElement(responseText).jsonObject
         return obj["Message"]?.jsonObject?.get("Content")?.jsonPrimitive?.content ?: ""
     }
 
     suspend fun getNotices(): List<LibrusNotice> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Notes") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Notes")
         return json.decodeFromString<LibrusNoticesResponse>(responseText).notices
     }
 
     suspend fun getNoticeCategories(): List<LibrusNoticeCategory> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Notes/Categories") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Notes/Categories")
         return json.decodeFromString<LibrusNoticeCategoriesResponse>(responseText).categories
     }
 
     suspend fun getSubjects(): List<LibrusSubject> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Subjects") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Subjects")
         return json.decodeFromString<LibrusSubjectsResponse>(responseText).subjects
     }
 
     suspend fun getUsers(): List<LibrusUser> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Users") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Users")
         return json.decodeFromString<LibrusUsersResponse>(responseText).users
     }
 
     suspend fun getClassrooms(): List<LibrusClassroom> {
-        val responseText = httpClient.get("${LibrusConstants.API_URL}/Classrooms") {
-            header("Authorization", "Bearer $apiAccessToken")
-        }.bodyAsText()
+        val responseText = apiGet("${LibrusConstants.API_URL}/Classrooms")
         return json.decodeFromString<LibrusClassroomsResponse>(responseText).classrooms
     }
 }

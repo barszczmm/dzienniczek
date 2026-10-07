@@ -3,7 +3,6 @@ package io.github.szpontium.session
 import io.github.szpontium.api.hebe.SzpontApi
 import io.github.szpontium.api.hebe.models.Account
 import io.github.szpontium.api.librus.SzpontLibrusApi
-import io.github.szpontium.api.librus.models.LibrusSynergiaAccount
 import io.github.szpontium.api.prometheus.PrometheusMessagesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,19 +16,15 @@ class ApiSession {
     private val _activeStudent = MutableStateFlow<StudentSession?>(null)
     val activeStudent: StateFlow<StudentSession?> = _activeStudent.asStateFlow()
 
-    // Legacy / Librus fallbacks
-    var legacyApi: SzpontApi? = null
-    var legacyAccounts: List<Account> = emptyList()
-    var selectedAccountIndex: Int = 0
-    var librusApi: SzpontLibrusApi? = null
-    var librusAccounts: List<LibrusSynergiaAccount> = emptyList()
-    var librusPortalToken: String? = null
-
     val currentAccount: Account?
-        get() = _activeStudent.value?.account ?: legacyAccounts.getOrNull(selectedAccountIndex)
+        get() = _activeStudent.value?.account
 
     val api: SzpontApi?
-        get() = _activeStudent.value?.api ?: legacyApi
+        get() = _activeStudent.value?.api
+
+    /** Librus API of the active student, or null when the active student is from eduVulcan. */
+    val librusApi: SzpontLibrusApi?
+        get() = _activeStudent.value?.librusApi
 
     val prometheusMessagesApi: PrometheusMessagesApi?
         get() = _activeStudent.value?.prometheusMessagesApi
@@ -52,7 +47,7 @@ class ApiSession {
         _activeStudent.value = toSelect
     }
 
-    fun addStudentSessions(sessions: List<StudentSession>) {
+    fun addStudentSessions(sessions: List<StudentSession>, selectId: String? = null) {
         val current = _studentSessions.value.toMutableList()
         sessions.forEach { newSession ->
             val index = current.indexOfFirst { it.id == newSession.id }
@@ -63,8 +58,14 @@ class ApiSession {
             }
         }
         _studentSessions.value = current
-        if (_activeStudent.value == null) {
+        val toSelect = selectId?.let { id -> current.firstOrNull { it.id == id && it.isEnabled } }
+        if (toSelect != null) {
+            _activeStudent.value = toSelect
+        } else if (_activeStudent.value == null) {
             _activeStudent.value = current.firstOrNull { it.isEnabled }
+        } else {
+            // The active session object may have been replaced (re-login of the same student).
+            _activeStudent.value = current.firstOrNull { it.id == _activeStudent.value?.id } ?: _activeStudent.value
         }
     }
 
@@ -100,20 +101,8 @@ class ApiSession {
         }
     }
 
-    fun setup(api: SzpontApi, accounts: List<Account>) {
-        this.legacyApi = api
-        this.legacyAccounts = accounts
-        this.selectedAccountIndex = 0
-    }
-
     fun clear() {
         _studentSessions.value = emptyList()
         _activeStudent.value = null
-        legacyApi = null
-        legacyAccounts = emptyList()
-        selectedAccountIndex = 0
-        librusApi = null
-        librusAccounts = emptyList()
-        librusPortalToken = null
     }
 }

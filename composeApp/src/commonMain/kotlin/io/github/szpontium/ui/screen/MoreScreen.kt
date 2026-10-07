@@ -187,7 +187,7 @@ fun AccountScreen(
         ) {
             Icon(imageVector = Icons.Default.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Dodaj kolejne konto EduVulcan")
+            Text("Dodaj konto (eduVulcan lub Librus)")
         }
 
         Spacer(Modifier.height(8.dp))
@@ -251,7 +251,8 @@ private fun StudentAccountCard(
                         )
                     }
                     Text(
-                        text = student.account.unit.displayName.ifBlank { student.account.unit.name },
+                        text = (if (student.isLibrus) "Librus · " else "eduVulcan · ") +
+                            student.account.unit.displayName.ifBlank { student.account.unit.name },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
