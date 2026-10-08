@@ -148,15 +148,51 @@ class PrometheusMessagesApi(
         )
     }
 
-    suspend fun getMailboxes(): List<PrometheusMailbox> {
-        initialize()
-        val response = httpClient.get("$messagesBaseUrl/$tenant/api/Skrzynki") {
-            header("X-V-AppGuid", appGuid)
-            header("X-V-RequestVerificationToken", antiForgeryToken)
-            contentType(ContentType.Application.Json)
+    /**
+     * GET on the messages API. The web session expires after a while (e.g. when the app
+     * stays open for hours) and the server then answers with a login page or an empty
+     * body instead of JSON – in that case log in again once and repeat the request.
+     */
+    private suspend fun apiGet(
+        path: String,
+        params: Map<String, Any> = emptyMap(),
+        isValid: (String) -> Boolean = { true }
+    ): String {
+        suspend fun attempt(): Pair<Boolean, String> {
+            initialize()
+            val response = httpClient.get("$messagesBaseUrl/$tenant$path") {
+                params.forEach { (k, v) -> parameter(k, v) }
+                header("X-V-AppGuid", appGuid)
+                header("X-V-RequestVerificationToken", antiForgeryToken)
+                contentType(ContentType.Application.Json)
+            }
+            val body = response.bodyAsText()
+            val trimmed = body.trimStart()
+            val ok = response.status.isSuccess() &&
+                (trimmed.startsWith("{") || trimmed.startsWith("[")) && isValid(body)
+            return ok to body
         }
-        return response.body()
+
+        val (ok, body) = attempt()
+        if (ok) return body
+        resetSession()
+        val (okAgain, bodyAgain) = attempt()
+        if (okAgain) return bodyAgain
+        throw IllegalStateException(
+            "eduVulcan: nie udało się pobrać danych (sesja wygasła lub serwer zwrócił błąd). Spróbuj ponownie za chwilę."
+        )
     }
+
+    /** Forgets the web session so the next request logs in again. */
+    private fun resetSession() {
+        isInitialized = false
+        initialCookies = null
+        antiForgeryToken = ""
+        appGuid = ""
+    }
+
+    suspend fun getMailboxes(): List<PrometheusMailbox> =
+        json.decodeFromString(apiGet("/api/Skrzynki"))
 
     suspend fun getReceivedMessages(mailboxKey: String, pageSize: Int = 50, lastMessageId: Int = 0): List<PrometheusMessage> {
         return fetchMessages("/api/OdebraneSkrzynka", mailboxKey, pageSize, lastMessageId)
@@ -170,29 +206,18 @@ class PrometheusMessagesApi(
         return fetchMessages("/api/UsunieteSkrzynka", mailboxKey, pageSize, lastMessageId)
     }
 
-    private suspend fun fetchMessages(endpoint: String, mailboxKey: String, pageSize: Int, lastMessageId: Int): List<PrometheusMessage> {
-        initialize()
-        val response = httpClient.get("$messagesBaseUrl/$tenant$endpoint") {
-            parameter("globalKeySkrzynka", mailboxKey)
-            parameter("idLastWiadomosc", lastMessageId)
-            parameter("pageSize", pageSize)
-            header("X-V-AppGuid", appGuid)
-            header("X-V-RequestVerificationToken", antiForgeryToken)
-            contentType(ContentType.Application.Json)
-        }
-        return response.body()
-    }
+    private suspend fun fetchMessages(endpoint: String, mailboxKey: String, pageSize: Int, lastMessageId: Int): List<PrometheusMessage> =
+        json.decodeFromString(
+            apiGet(
+                endpoint,
+                mapOf("globalKeySkrzynka" to mailboxKey, "idLastWiadomosc" to lastMessageId, "pageSize" to pageSize)
+            )
+        )
 
-    suspend fun getMessageDetails(apiGlobalKey: String): PrometheusMessageDetails {
-        initialize()
-        val response = httpClient.get("$messagesBaseUrl/$tenant/api/WiadomoscSzczegoly") {
-            parameter("apiGlobalKey", apiGlobalKey)
-            header("X-V-AppGuid", appGuid)
-            header("X-V-RequestVerificationToken", antiForgeryToken)
-            contentType(ContentType.Application.Json)
-        }
-        return response.body()
-    }
+    suspend fun getMessageDetails(apiGlobalKey: String): PrometheusMessageDetails =
+        json.decodeFromString(
+            apiGet("/api/WiadomoscSzczegoly", mapOf("apiGlobalKey" to apiGlobalKey)) { "apiGlobalKey" in it }
+        )
 
     suspend fun markMessageAsRead(apiGlobalKey: String) {
         initialize()
@@ -223,13 +248,9 @@ class PrometheusMessagesApi(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun reply(apiGlobalKey: String, text: String) {
         initialize()
-        val details: PrometheusReplyDetails = httpClient.get("$messagesBaseUrl/$tenant/api/WiadomoscOdpowiedzPrzekaz") {
-            parameter("apiGlobalKey", apiGlobalKey)
-            header("X-V-AppGuid", appGuid)
-            header("X-V-RequestVerificationToken", antiForgeryToken)
-            contentType(ContentType.Application.Json)
-        }.also { check(it.status.isSuccess()) { "eduVulcan: nie udało się przygotować odpowiedzi (${it.status.value})" } }
-            .body()
+        val details: PrometheusReplyDetails = json.decodeFromString(
+            apiGet("/api/WiadomoscOdpowiedzPrzekaz", mapOf("apiGlobalKey" to apiGlobalKey)) { "SkrzynkaGlobalKey" in it }
+        )
         check(details.uzytkownikSkrzynkaGlobalKey.isNotBlank() && details.nadawcaSkrzynkaGlobalKey.isNotBlank()) {
             "eduVulcan: brak danych skrzynki nadawcy"
         }

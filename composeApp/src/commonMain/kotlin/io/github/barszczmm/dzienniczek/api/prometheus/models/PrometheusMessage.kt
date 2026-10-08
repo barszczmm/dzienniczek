@@ -15,7 +15,7 @@ data class PrometheusMessage(
 
 @Serializable
 data class PrometheusMessageDetails(
-    val apiGlobalKey: String,
+    val apiGlobalKey: String = "",
     val data: String = "",
     val id: Int = 0,
     val odczytana: Boolean = false,
