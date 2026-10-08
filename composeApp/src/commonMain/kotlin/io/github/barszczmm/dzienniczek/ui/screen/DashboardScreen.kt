@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -285,7 +286,16 @@ fun DashboardScreen(
                                 contentDescription = tab.label
                             )
                         },
-                        label = { Text(tab.label) },
+                        // One line, slightly smaller text so "Sprawdziany" / "Wiadomości" fit without wrapping.
+                        label = {
+                            Text(
+                                text = tab.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         selected = currentRoute == tab.route ||
                             (tab.route == Route.More && currentRoute in moreRoutes) ||
                             (tab.route == Route.Messages && currentRoute is Route.MessageDetails),
