@@ -358,6 +358,28 @@ class DzienniczekLibrusApi(
         }
     }
 
+    suspend fun getTextGrades(): List<LibrusTextGrade> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/BaseTextGrades")
+        return json.decodeFromString<LibrusTextGradesResponse>(responseText).grades
+            ?: run { throwIfApiError(responseText); emptyList() }
+    }
+
+    suspend fun getDescriptiveGrades(): List<LibrusDescriptiveGrade> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/DescriptiveGrades")
+        return json.decodeFromString<LibrusDescriptiveGradesResponse>(responseText).grades
+            ?: run { throwIfApiError(responseText); emptyList() }
+    }
+
+    suspend fun getTextGradeCategories(): List<LibrusNamedColorItem> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/TextGrades/Categories")
+        return json.decodeFromString<LibrusTextGradeCategoriesResponse>(responseText).categories.orEmpty()
+    }
+
+    suspend fun getDescriptiveSkills(): List<LibrusNamedColorItem> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/DescriptiveTextGrades/Skills")
+        return json.decodeFromString<LibrusSkillsResponse>(responseText).skills.orEmpty()
+    }
+
     suspend fun getNotices(): List<LibrusNotice> {
         val responseText = apiGet("${LibrusConstants.API_URL}/Notes")
         val notices = json.decodeFromString<LibrusNoticesResponse>(responseText).notices

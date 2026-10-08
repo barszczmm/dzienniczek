@@ -87,7 +87,19 @@ class DzienniczekLibrusAdapterApi(
         val grades = librusApi.getGrades()
         val categories = getGradeCategories()
         val subjects = getSubjects()
-        return LibrusMapper.mapGrades(grades, categories, subjects)
+
+        // Descriptive grades used in early education. Many schools don't use them
+        // (or deny access), so failures here must not break the regular grades.
+        val textGrades = runCatching { librusApi.getTextGrades() }.getOrDefault(emptyList())
+        val descriptiveGrades = runCatching { librusApi.getDescriptiveGrades() }.getOrDefault(emptyList())
+        val textCategories = if (textGrades.isEmpty()) emptyList()
+            else runCatching { librusApi.getTextGradeCategories() }.getOrDefault(emptyList())
+        val skills = if (textGrades.isEmpty() && descriptiveGrades.isEmpty()) emptyList()
+            else runCatching { librusApi.getDescriptiveSkills() }.getOrDefault(emptyList())
+
+        return LibrusMapper.mapGrades(grades, categories, subjects) +
+            LibrusMapper.mapTextGrades(textGrades, textCategories, skills, subjects) +
+            LibrusMapper.mapDescriptiveGrades(descriptiveGrades, skills, subjects)
     }
 
     override suspend fun getGradesAverages(
