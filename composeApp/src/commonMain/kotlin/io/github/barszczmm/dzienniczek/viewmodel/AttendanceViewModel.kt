@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.time.Clock
 
 /** Which entries are listed – set by tapping the summary tiles. */
@@ -94,8 +96,17 @@ class AttendanceViewModel(
             val student = session.activeStudent.value ?: return null
             if (student.isLibrus) return null
             val tenant = student.prometheusTenant?.takeIf { it.isNotBlank() } ?: return null
-            return "https://uczen.eduvulcan.pl/$tenant/App"
+            val account = student.account
+            val journalId = account.journal?.id ?: return "https://uczen.eduvulcan.pl/$tenant/App"
+            // The web app addresses a student by base64(base64("pupil-journal-1-unit")) without
+            // padding, e.g. …/App/TVRRNU5qSXROREkxT1MweExUUT0/frekwencja.
+            val key = "${account.pupil.id}-$journalId-1-${account.constituentUnit.id}"
+            val encoded = base64(base64(key)).trimEnd('=')
+            return "https://uczen.eduvulcan.pl/$tenant/App/$encoded/frekwencja"
         }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private fun base64(text: String): String = Base64.encode(text.encodeToByteArray())
 
     fun openJustification() {
         justifyUrl?.let { openUrl(it) }

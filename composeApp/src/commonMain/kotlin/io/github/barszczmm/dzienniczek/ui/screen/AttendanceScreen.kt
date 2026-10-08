@@ -171,7 +171,7 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
                     Text("Usprawiedliw w eduVulcan")
                 }
                 Text(
-                    text = "Otwiera stronę eduVulcan w przeglądarce (Frekwencja → Usprawiedliw). " +
+                    text = "Otwiera frekwencję w eduVulcan w przeglądarce (przycisk „Usprawiedliw”). " +
                         "Po wysłaniu odśwież tę listę ↻.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
