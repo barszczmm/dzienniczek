@@ -114,7 +114,7 @@ open class DzienniczekApi(
         val lessons = mutableListOf<Lesson>()
         var lastId = INT_MIN
         for (pageNo in 0 until 20) {
-            val page = getLessons(
+            val page = getCompletedLessons(
                 restUrl = account.unit.restUrl,
                 pupilId = account.pupil.id,
                 dateFrom = dateFrom,
