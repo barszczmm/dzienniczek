@@ -8,7 +8,7 @@ Fork projektu [DzienniczekSzpontniczek](https://github.com/szponciciel04/Dzienni
 - konta Librus i eduVulcan jednocześnie, wielu uczniów na jednym koncie,
 - oceny, plan lekcji, sprawdziany, zadania domowe, frekwencja, uwagi, ogłoszenia,
 - wiadomości – Librus przez darmową wersję webową Synergii, eduVulcan przez `wiadomosci.eduvulcan.pl`,
-- powiadomienia o nowych wiadomościach z pełną treścią (sprawdzanie w tle co 15 minut),
+- opcjonalne powiadomienia o nowych wiadomościach z pełną treścią (sprawdzanie w tle co ok. 30 minut, do włączenia w Ustawieniach),
 - automatyczne odnawianie tokenów Librusa.
 
 ## Build
