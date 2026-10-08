@@ -341,14 +341,31 @@ class DzienniczekLibrusApi(
         return obj["Message"]?.jsonObject?.get("Content")?.jsonPrimitive?.content ?: ""
     }
 
+    /** Librus returns errors as {"Status":"Error","Code":"...","Message":"..."}. */
+    private fun throwIfApiError(responseText: String) {
+        val obj = runCatching { json.parseToJsonElement(responseText).jsonObject }.getOrNull() ?: return
+        val status = obj["Status"]?.jsonPrimitive?.content
+        if (status.equals("Error", ignoreCase = true) || obj.containsKey("Code") && obj.containsKey("Message")) {
+            val message = obj["Message"]?.jsonPrimitive?.content ?: obj["Code"]?.jsonPrimitive?.content
+            throw IllegalStateException("Librus: ${message ?: "błąd API"}")
+        }
+    }
+
     suspend fun getNotices(): List<LibrusNotice> {
         val responseText = apiGet("${LibrusConstants.API_URL}/Notes")
-        return json.decodeFromString<LibrusNoticesResponse>(responseText).notices
+        val notices = json.decodeFromString<LibrusNoticesResponse>(responseText).notices
+        return notices ?: run { throwIfApiError(responseText); emptyList() }
+    }
+
+    suspend fun getSchoolNotices(): List<LibrusSchoolNotice> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/SchoolNotices")
+        val notices = json.decodeFromString<LibrusSchoolNoticesResponse>(responseText).schoolNotices
+        return notices ?: run { throwIfApiError(responseText); emptyList() }
     }
 
     suspend fun getNoticeCategories(): List<LibrusNoticeCategory> {
         val responseText = apiGet("${LibrusConstants.API_URL}/Notes/Categories")
-        return json.decodeFromString<LibrusNoticeCategoriesResponse>(responseText).categories
+        return json.decodeFromString<LibrusNoticeCategoriesResponse>(responseText).categories.orEmpty()
     }
 
     suspend fun getSubjects(): List<LibrusSubject> {

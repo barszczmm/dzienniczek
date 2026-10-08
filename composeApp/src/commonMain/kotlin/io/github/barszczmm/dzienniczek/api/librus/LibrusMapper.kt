@@ -269,14 +269,10 @@ object LibrusMapper {
         val categoryMap = lCategories.associateBy { it.id }
         val userMap = lUsers.associateBy { it.id }
 
-        return lNotices.map { lN ->
-            val date = try {
-                LocalDate.parse(lN.date)
-            } catch (e: Exception) {
-                LocalDate(2024, 1, 1)
-            }
-            val dateTime = LocalDateTime(date.year, date.month, date.day, 0, 0)
-            
+        return lNotices.sortedByDescending { it.date }.map { lN ->
+            val dateTime = parseLibrusDateTime(lN.date)
+            val date = dateTime.date
+
             val cat = lN.category?.let { categoryMap[it.id] }
             val lUser = userMap[lN.teacher?.id]
             val teacherName = if (lUser != null) "${lUser.firstName ?: ""} ${lUser.lastName ?: ""}".trim() else "Brak danych"
@@ -293,7 +289,7 @@ object LibrusMapper {
                     id = lN.category?.id?.toInt() ?: 0,
                     name = cat?.name ?: "Inna"
                 ),
-                content = lN.text,
+                content = lN.text ?: "",
                 points = null
             )
         }
@@ -322,35 +318,40 @@ object LibrusMapper {
     }
 
     fun mapAnnouncements(
-        lNotices: List<LibrusNotice>,
+        lNotices: List<LibrusSchoolNotice>,
         lUsers: List<LibrusUser>
     ): List<Announcement> {
         val userMap = lUsers.associateBy { it.id }
 
         return lNotices.map { lN ->
-            val date = try {
-                LocalDate.parse(lN.date)
-            } catch (e: Exception) {
-                LocalDate(2024, 1, 1)
-            }
-            val dateTime = LocalDateTime(date.year, date.month, date.day, 0, 0)
-            val lUser = userMap[lN.teacher?.id]
-            val teacherName = if (lUser != null) "${lUser.firstName ?: ""} ${lUser.lastName ?: ""}".trim() else "Nauczyciel"
+            val created = parseLibrusDateTime(lN.creationDate)
+            val from = lN.startDate?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() } ?: created.date
+            val to = lN.endDate?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() } ?: from
+            val lUser = userMap[lN.addedBy?.id]
+            val teacherName = if (lUser != null) "${lUser.firstName ?: ""} ${lUser.lastName ?: ""}".trim() else "Szkoła"
 
             Announcement(
-                id = lN.id.toInt(),
+                id = lN.id.hashCode(),
                 unitId = 0,
-                title = "Ogłoszenie",
-                content = lN.text,
+                title = lN.subject?.ifBlank { null } ?: "Ogłoszenie",
+                content = lN.content ?: "",
                 category = null,
-                dateFrom = date,
-                dateTo = date,
+                dateFrom = from,
+                dateTo = to,
                 sender = Employee(0, "", teacherName, teacherName),
                 attachments = emptyList(),
-                createdAt = dateTime,
-                modifiedAt = dateTime
+                createdAt = created,
+                modifiedAt = created
             )
-        }
+        }.sortedByDescending { it.createdAt }
+    }
+
+    /** Parses "2026-10-07 12:34:56" / "2026-10-07T12:34:56" / "2026-10-07". */
+    private fun parseLibrusDateTime(text: String?): LocalDateTime {
+        val t = text?.trim().orEmpty()
+        return runCatching { LocalDateTime.parse(t.replace(' ', 'T').take(19)) }.getOrNull()
+            ?: runCatching { LocalDate.parse(t.take(10)).let { LocalDateTime(it.year, it.month, it.day, 0, 0) } }.getOrNull()
+            ?: LocalDateTime(1970, 1, 1, 0, 0)
     }
 
     fun mapAverages(

@@ -158,8 +158,8 @@ class DzienniczekLibrusAdapterApi(
         lastSyncDate: LocalDateTime
     ): List<Note> {
         val notices = librusApi.getNotices()
-        val categories = getNoticeCategories()
-        val users = getUsers()
+        val categories = runCatching { getNoticeCategories() }.getOrDefault(emptyList())
+        val users = runCatching { getUsers() }.getOrDefault(emptyList())
         return LibrusMapper.mapNotices(notices, categories, users)
     }
 
@@ -171,8 +171,8 @@ class DzienniczekLibrusAdapterApi(
         lastId: Int,
         pageSize: Int
     ): List<Announcement> {
-        val notices = librusApi.getNotices()
-        val users = getUsers()
+        val notices = librusApi.getSchoolNotices()
+        val users = runCatching { getUsers() }.getOrDefault(emptyList())
         return LibrusMapper.mapAnnouncements(notices, users)
     }
 }
