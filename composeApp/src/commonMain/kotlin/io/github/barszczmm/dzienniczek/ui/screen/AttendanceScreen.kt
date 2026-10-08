@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
@@ -32,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -157,6 +159,24 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
                 SummaryTile(state.late, "spóźnienia", ColorLate, state.filter == AttendanceFilter.LATE, Modifier.weight(1f)) {
                     viewModel.setFilter(AttendanceFilter.LATE)
                 }
+            }
+            if (viewModel.justifyUrl != null && state.toJustify > 0) {
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = { viewModel.openJustification() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Usprawiedliw w eduVulcan")
+                }
+                Text(
+                    text = "Otwiera stronę eduVulcan w przeglądarce (Frekwencja → Usprawiedliw). " +
+                        "Po wysłaniu odśwież tę listę ↻.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
             Spacer(Modifier.height(8.dp))
         }

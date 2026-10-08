@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.barszczmm.dzienniczek.api.hebe.models.semesterOf
 import io.github.barszczmm.dzienniczek.data.AttendanceRepository
+import io.github.barszczmm.dzienniczek.platform.openUrl
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.ui.model.AttendanceEntry
 import io.github.barszczmm.dzienniczek.ui.model.AttendanceKind
@@ -30,6 +31,9 @@ data class AttendanceState(
         get() = if (semester == 0) all else all.filter { it.semester == semester }
 
     val unexcused: Int get() = inSemester.count { it.kind == AttendanceKind.ABSENT }
+
+    /** Absences and late arrivals that still can be justified (whole school year). */
+    val toJustify: Int get() = all.count { it.kind == AttendanceKind.ABSENT || it.kind == AttendanceKind.LATE }
     val excused: Int get() = inSemester.count { it.kind == AttendanceKind.ABSENT_EXCUSED || it.kind == AttendanceKind.RELEASED }
     val late: Int get() = inSemester.count { it.kind == AttendanceKind.LATE || it.kind == AttendanceKind.LATE_EXCUSED }
 
@@ -79,6 +83,22 @@ class AttendanceViewModel(
                 )
             }
         }
+    }
+
+    /**
+     * eduVulcan web page of the student's school, where absences can be justified for free.
+     * Null for Librus (and for eduVulcan accounts without a web login).
+     */
+    val justifyUrl: String?
+        get() {
+            val student = session.activeStudent.value ?: return null
+            if (student.isLibrus) return null
+            val tenant = student.prometheusTenant?.takeIf { it.isNotBlank() } ?: return null
+            return "https://uczen.eduvulcan.pl/$tenant/App"
+        }
+
+    fun openJustification() {
+        justifyUrl?.let { openUrl(it) }
     }
 
     fun setSemester(semester: Int) {
