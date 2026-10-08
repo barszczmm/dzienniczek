@@ -95,8 +95,8 @@ android {
         applicationId = "io.github.barszczmm.dzienniczek"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
     }
     packaging {
         resources {
