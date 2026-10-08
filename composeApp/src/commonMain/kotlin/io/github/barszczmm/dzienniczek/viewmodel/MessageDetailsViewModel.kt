@@ -6,6 +6,9 @@ import io.github.barszczmm.dzienniczek.session.ApiSession
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import io.github.barszczmm.dzienniczek.util.displayMailboxName
+import io.github.barszczmm.dzienniczek.util.formatJournalDateTime
+import io.github.barszczmm.dzienniczek.util.parseJournalDateTime
 
 data class MessageDetailsState(
     val isLoading: Boolean = false,
@@ -79,7 +82,7 @@ class MessageDetailsViewModel(
                         content = details.content.ifBlank { "Brak treści wiadomości." },
                         sender = details.sender,
                         subject = details.subject,
-                        date = details.date
+                        date = parseJournalDateTime(details.date)?.let { formatJournalDateTime(it) } ?: details.date
                     )
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -116,9 +119,9 @@ class MessageDetailsViewModel(
                     _state.value = _state.value.copy(
                         isLoading = false,
                         content = details.tresc,
-                        sender = details.nadawca,
+                        sender = displayMailboxName(details.nadawca) ?: details.nadawca,
                         subject = details.temat,
-                        date = details.data
+                        date = parseJournalDateTime(details.data)?.let { formatJournalDateTime(it) } ?: details.data
                     )
                 } catch (e: Exception) {
                     e.printStackTrace()

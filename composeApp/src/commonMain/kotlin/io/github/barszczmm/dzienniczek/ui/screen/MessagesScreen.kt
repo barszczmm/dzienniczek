@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.barszczmm.dzienniczek.util.formatJournalDateTime
 import io.github.barszczmm.dzienniczek.navigation.Route
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.ui.model.UiMessage
@@ -171,7 +172,7 @@ private fun MessageCard(
             if (message.date != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "${message.date.dayOfMonth}.${message.date.monthNumber}.${message.date.year}",
+                    text = formatJournalDateTime(message.date),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )

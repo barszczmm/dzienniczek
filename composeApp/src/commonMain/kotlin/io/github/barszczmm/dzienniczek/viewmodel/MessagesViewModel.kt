@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import io.github.barszczmm.dzienniczek.util.parseJournalDateTime
+import io.github.barszczmm.dzienniczek.util.displayMailboxName
 import kotlinx.datetime.LocalDateTime
 
 enum class MessageTab {
@@ -103,8 +105,8 @@ class MessagesViewModel(
                         UiMessage(
                             id = pMsg.apiGlobalKey,
                             title = pMsg.temat,
-                            senderOrRecipient = pMsg.korespondenci ?: "Nieznany",
-                            date = try { LocalDateTime.parse(pMsg.data.removeSuffix("Z")) } catch (e: Exception) { null },
+                            senderOrRecipient = displayMailboxName(pMsg.korespondenci) ?: "Nieznany",
+                            date = parseJournalDateTime(pMsg.data),
                             isUnread = !pMsg.przeczytana,
                             hasAttachments = pMsg.hasZalaczniki
                         )
