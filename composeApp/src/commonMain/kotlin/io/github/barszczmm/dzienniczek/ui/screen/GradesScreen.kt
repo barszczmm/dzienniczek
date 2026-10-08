@@ -185,6 +185,15 @@ fun GradeChip(grade: Grade) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
+            // Descriptive grades: the range of the scale ("5–6") so the colour is readable at a glance.
+            if (ownColor != null && grade.column.code.isNotBlank()) {
+                Text(
+                    text = grade.column.code,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor.copy(alpha = 0.9f)
+                )
+            }
             if (grade.column.weight > 0) {
                 Text(
                     text = "waga: ${grade.column.weight}",
@@ -219,6 +228,12 @@ fun GradeChip(grade: Grade) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    if (ownColor != null && grade.column.code.isNotBlank()) {
+                        Text("Zakres ocen: ${grade.column.code}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (ownColor != null && grade.contentRaw.isNotBlank() && grade.contentRaw != grade.content) {
+                        Text("Wartość w Librusie: ${grade.contentRaw}", style = MaterialTheme.typography.bodyMedium)
                     }
                     if (grade.column.weight > 0) {
                         Text("Waga: ${grade.column.weight}", style = MaterialTheme.typography.bodyMedium)

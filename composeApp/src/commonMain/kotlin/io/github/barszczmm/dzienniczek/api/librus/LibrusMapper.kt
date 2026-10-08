@@ -155,6 +155,14 @@ object LibrusMapper {
         else -> if (scaleIndex > 3) 0xFF00BCD4.toInt() else 0xFFF44336.toInt()
     }
 
+    /** Grade range as shown under the badge: 3 → "5–6", 2 → "3–4", 1 → "1–2". */
+    fun descriptiveRangeLabel(scaleIndex: Int?): String = when (scaleIndex) {
+        3 -> "5–6"
+        2 -> "3–4"
+        1 -> "1–2"
+        else -> ""
+    }
+
     /** Letter at the start of a teacher's comment ("A praca samodzielna" → "A"). */
     private fun leadingLetter(comment: String?): String? =
         comment?.trim()?.let { Regex("^([A-F][+-]?)(\\s|$|[.,:;-])").find(it)?.groupValues?.get(1)?.uppercase() }
@@ -175,14 +183,16 @@ object LibrusMapper {
         subjectName: String,
         columnId: Long,
         columnName: String,
-        color: Int
+        color: Int,
+        rawValue: String = content,
+        rangeLabel: String = ""
     ): Grade {
         val date = librusDateTime(addDate)
         return Grade(
             id = id.toInt(),
             key = "d$id",
             pupilId = 0,
-            contentRaw = content,
+            contentRaw = rawValue,
             content = content,
             comment = comment,
             value = value,
@@ -195,7 +205,7 @@ object LibrusMapper {
                 key = columnId.toString(),
                 periodId = semester ?: 1,
                 name = columnName,
-                code = "",
+                code = rangeLabel,
                 group = "",
                 number = 0,
                 color = color,
@@ -283,7 +293,9 @@ object LibrusMapper {
                 subjectName = subjectMap[subjectId]?.name ?: "Brak nazwy",
                 columnId = skill?.id ?: 0,
                 columnName = skill?.name ?: "Ocena opisowa",
-                color = if (isScaleValue) descriptiveScaleColor(g.scaleIndex) else 0
+                color = if (isScaleValue) descriptiveScaleColor(g.scaleIndex) else 0,
+                rawValue = value ?: content,
+                rangeLabel = if (isScaleValue) descriptiveRangeLabel(g.scaleIndex) else ""
             )
         }
     }
