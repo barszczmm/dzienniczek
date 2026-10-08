@@ -100,7 +100,7 @@ class AttendanceViewModel(
             val journalId = account.journal?.id ?: return "https://uczen.eduvulcan.pl/$tenant/App"
             // The web app addresses a student by base64(base64("pupil-journal-1-unit")) without
             // padding, e.g. …/App/TVRRNU5qSXROREkxT1MweExUUT0/frekwencja.
-            val key = "${account.pupil.id}-$journalId-1-${account.constituentUnit.id}"
+            val key = "${account.pupil.id}-$journalId-1-${account.unit.id}"
             val encoded = base64(base64(key)).trimEnd('=')
             return "https://uczen.eduvulcan.pl/$tenant/App/$encoded/frekwencja"
         }
