@@ -14,7 +14,10 @@ Fork projektu [DzienniczekSzpontniczek](https://github.com/szponciciel04/Dzienni
 ## Build
 
 Build uruchamia się ręcznie w GitHub Actions: **Actions → Build → Run workflow** (dowolny branch).
-Gotowy plik `dzienniczek.apk` (wersja debug) jest w sekcji **Artifacts** danego uruchomienia.
+Gotowy plik `dzienniczek.apk` (wersja release) jest w sekcji **Artifacts** danego uruchomienia.
+
+APK jest podpisywany stałym kluczem z sekretów repozytorium (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`,
+`KEY_ALIAS`, `KEY_PASSWORD`) – dzięki temu kolejne wersje instalują się jako aktualizacja.
 
 Lokalnie: `./gradlew :composeApp:assembleDebug`
 

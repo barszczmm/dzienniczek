@@ -102,9 +102,24 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    // Release builds are signed with a fixed key so that new versions install as updates.
+    // The keystore and passwords come from environment variables (GitHub Actions secrets).
+    val releaseKeystore = System.getenv("DZIENNICZEK_KEYSTORE_FILE")?.let { file(it) }
+    signingConfigs {
+        if (releaseKeystore != null && releaseKeystore.exists()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("DZIENNICZEK_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("DZIENNICZEK_KEY_ALIAS")
+                keyPassword = System.getenv("DZIENNICZEK_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = true
+            // No shrinking: there are no keep rules for the reflection/serialization used here.
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
