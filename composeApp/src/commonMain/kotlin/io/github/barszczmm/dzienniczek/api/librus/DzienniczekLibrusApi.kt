@@ -346,7 +346,14 @@ class DzienniczekLibrusApi(
         val obj = runCatching { json.parseToJsonElement(responseText).jsonObject }.getOrNull() ?: return
         val status = obj["Status"]?.jsonPrimitive?.content
         if (status.equals("Error", ignoreCase = true) || obj.containsKey("Code") && obj.containsKey("Message")) {
-            val message = obj["Message"]?.jsonPrimitive?.content ?: obj["Code"]?.jsonPrimitive?.content
+            val code = obj["Code"]?.jsonPrimitive?.content
+            val message = obj["Message"]?.jsonPrimitive?.content ?: code
+            // The school has this module switched off / the account has no access to it.
+            if (code in listOf("AccessDeny", "NotesIsNotActive", "Request is denied") ||
+                message?.contains("not have access", ignoreCase = true) == true
+            ) {
+                throw LibrusFeatureUnavailableException(message ?: "AccessDeny")
+            }
             throw IllegalStateException("Librus: ${message ?: "błąd API"}")
         }
     }
@@ -391,3 +398,6 @@ data class LibrusWebMessage(
     val date: String?,
     val content: String
 )
+
+/** Thrown when the school does not make a module (e.g. notes) available in Librus. */
+class LibrusFeatureUnavailableException(message: String) : Exception(message)

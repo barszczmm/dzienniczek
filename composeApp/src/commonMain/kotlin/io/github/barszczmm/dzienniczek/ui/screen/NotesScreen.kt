@@ -47,6 +47,7 @@ fun NotesScreen(viewModel: NotesViewModel = koinViewModel()) {
             CircularProgressIndicator()
         }
         state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
+        state.unavailableInfo != null -> EmptyScreen(state.unavailableInfo!!)
         state.notes.isEmpty() -> EmptyScreen("Brak uwag")
         else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
             itemsIndexed(state.notes, key = { _, note -> note.id }) { index, note ->

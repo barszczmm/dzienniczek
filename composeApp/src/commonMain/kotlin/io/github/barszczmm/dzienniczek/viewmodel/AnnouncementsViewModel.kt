@@ -1,6 +1,7 @@
 package io.github.barszczmm.dzienniczek.viewmodel
 
 import androidx.lifecycle.ViewModel
+import io.github.barszczmm.dzienniczek.api.librus.LibrusFeatureUnavailableException
 import androidx.lifecycle.viewModelScope
 import io.github.barszczmm.dzienniczek.api.hebe.models.Announcement
 import io.github.barszczmm.dzienniczek.session.ApiSession
@@ -47,6 +48,9 @@ class AnnouncementsViewModel(
                     pupilId = account.pupil.id
                 )
                 _state.value = AnnouncementsState(announcements = announcements)
+            } catch (e: LibrusFeatureUnavailableException) {
+                // The school does not publish announcements in Librus – show an empty list.
+                _state.value = AnnouncementsState()
             } catch (e: Exception) {
                 _state.value = AnnouncementsState(error = e.message ?: "Błąd ładowania ogłoszeń")
             }
