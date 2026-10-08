@@ -113,6 +113,140 @@ object LibrusMapper {
         }
     }
 
+    /**
+     * Librus colour ids (as used by the official app) to ARGB. The alpha byte is set,
+     * which is how the UI tells Librus colours apart from Vulcan's plain RGB values.
+     */
+    fun librusColor(ref: LibrusColorReference?): Int {
+        ref?.rgb?.trim()?.removePrefix("#")?.takeIf { it.length == 6 }?.toLongOrNull(16)?.let {
+            return (0xFF000000 or it).toInt()
+        }
+        return when (ref?.id) {
+            1 -> 0xFFF0E68C; 2 -> 0xFF87CEFA; 3 -> 0xFFB0C4DE; 4 -> 0xFFF0F8FF
+            5 -> 0xFFF0FFFF; 6 -> 0xFFF5F5DC; 7 -> 0xFFFFEBCD; 8 -> 0xFFFFF8DC
+            9 -> 0xFFA9A9A9; 10 -> 0xFFBDB76B; 11 -> 0xFF8FBC8F; 12 -> 0xFFDCDCDC
+            13 -> 0xFFDAA520; 14 -> 0xFFE6E6FA; 15 -> 0xFFFFA07A; 16 -> 0xFF32CD32
+            17 -> 0xFF66CDAA; 18 -> 0xFF66CDAA; 19 -> 0xFFC0C0C0; 20 -> 0xFFD2B48C
+            21 -> 0xFF3333FF; 22 -> 0xFF7B68EE; 23 -> 0xFFBA55D3; 24 -> 0xFFFFB6C1
+            25 -> 0xFFFF1493; 26 -> 0xFFDC143C; 27 -> 0xFFFF0000; 28 -> 0xFFFF8C00
+            29 -> 0xFFFFD700; 30 -> 0xFFADFF2F; 31 -> 0xFF7CFC00
+            else -> 0xFF2196F3
+        }.toInt()
+    }
+
+    private fun librusDateTime(text: String?): LocalDateTime =
+        runCatching { LocalDateTime.parse(text!!.trim().replace(" ", "T").take(19)) }.getOrNull()
+            ?: LocalDateTime(1970, 1, 1, 0, 0)
+
+    private fun descriptiveGrade(
+        id: Long,
+        content: String,
+        comment: String,
+        value: Double?,
+        addDate: String?,
+        addedBy: Long?,
+        semester: Int?,
+        subjectId: Long,
+        subjectName: String,
+        columnId: Long,
+        columnName: String,
+        color: Int
+    ): Grade {
+        val date = librusDateTime(addDate)
+        return Grade(
+            id = id.toInt(),
+            key = "d$id",
+            pupilId = 0,
+            contentRaw = content,
+            content = content,
+            comment = comment,
+            value = value,
+            createdAt = date,
+            modifiedAt = date,
+            creator = Employee(0, "", addedBy?.toString() ?: "", ""),
+            modifier = Employee(0, "", "", ""),
+            column = GradeColumn(
+                id = columnId.toInt(),
+                key = columnId.toString(),
+                periodId = semester ?: 1,
+                name = columnName,
+                code = "",
+                group = "",
+                number = 0,
+                color = color,
+                // Descriptive grades never count towards averages.
+                weight = 0.0,
+                subject = Subject(subjectId.toInt(), subjectId.toString(), subjectName, "", 0),
+                category = null
+            )
+        )
+    }
+
+    /** /BaseTextGrades: the grade is a free text, shown shortened with the full text as comment. */
+    fun mapTextGrades(
+        grades: List<LibrusTextGrade>,
+        categories: List<LibrusNamedColorItem>,
+        skills: List<LibrusNamedColorItem>,
+        subjects: List<LibrusSubject>
+    ): List<Grade> {
+        val categoryMap = categories.associateBy { it.id }
+        val skillMap = skills.associateBy { it.id }
+        val subjectMap = subjects.associateBy { it.id }
+        return grades.mapNotNull { g ->
+            val subjectId = g.subject?.id ?: return@mapNotNull null
+            val text = g.grade?.trim().orEmpty()
+            val group = g.skill?.let { skillMap[it.id] } ?: g.category?.let { categoryMap[it.id] }
+            val short = if (text.length <= 14) text.ifBlank { "opis" } else text.take(12).trimEnd() + "…"
+            descriptiveGrade(
+                id = g.id,
+                content = short,
+                comment = text,
+                value = null,
+                addDate = g.addDate,
+                addedBy = g.addedBy?.id,
+                semester = g.semester,
+                subjectId = subjectId,
+                subjectName = subjectMap[subjectId]?.name ?: "Brak nazwy",
+                columnId = group?.id ?: 0,
+                columnName = group?.name ?: "Ocena opisowa",
+                color = librusColor(group?.color)
+            )
+        }
+    }
+
+    /** /DescriptiveGrades: symbol (Map, e.g. "A") or value, coloured by the skill. */
+    fun mapDescriptiveGrades(
+        grades: List<LibrusDescriptiveGrade>,
+        skills: List<LibrusNamedColorItem>,
+        subjects: List<LibrusSubject>
+    ): List<Grade> {
+        val skillMap = skills.associateBy { it.id }
+        val subjectMap = subjects.associateBy { it.id }
+        return grades.mapNotNull { g ->
+            val subjectId = g.subject?.id ?: return@mapNotNull null
+            val symbol = g.map?.trim()?.ifBlank { null } ?: g.realGradeValue?.trim()?.ifBlank { null } ?: return@mapNotNull null
+            val skill = g.skill?.let { skillMap[it.id] }
+            val comment = listOfNotNull(
+                g.realGradeValue?.trim()?.takeIf { it.isNotBlank() && it != symbol },
+                g.phrase?.trim()?.takeIf { it.isNotBlank() }
+            ).joinToString("\n")
+            descriptiveGrade(
+                id = g.id,
+                content = symbol,
+                comment = comment,
+                value = null,
+                addDate = g.addDate,
+                addedBy = g.addedBy?.id,
+                semester = g.semester,
+                subjectId = subjectId,
+                subjectName = subjectMap[subjectId]?.name ?: "Brak nazwy",
+                columnId = skill?.id ?: 0,
+                columnName = skill?.name ?: "Ocena opisowa",
+                color = librusColor(skill?.color)
+            )
+        }
+    }
+
     fun mapSchedule(
         timetable: Map<String, List<List<LibrusLesson>>>,
         subjects: List<LibrusSubject>,

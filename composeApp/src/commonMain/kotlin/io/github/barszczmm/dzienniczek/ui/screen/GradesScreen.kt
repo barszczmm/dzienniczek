@@ -18,12 +18,20 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -141,22 +149,30 @@ private fun SubjectGradesSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradeChip(grade: Grade) {
+    // Librus descriptive grades carry their own colour (ARGB with the alpha byte set);
+    // Vulcan colours are plain RGB values and are ignored here.
+    val ownColor = grade.column.color.takeIf { (it ushr 24) == 0xFF }?.let { Color(it) }
     val color = when {
+        ownColor != null -> ownColor
         (grade.value ?: 0.0) >= 4.5 -> MaterialTheme.colorScheme.primaryContainer
         (grade.value ?: 0.0) >= 3.0 -> MaterialTheme.colorScheme.secondaryContainer
         grade.value != null -> MaterialTheme.colorScheme.errorContainer
         else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val contentColor = when {
+        ownColor != null -> if (ownColor.luminance() > 0.5f) Color.Black else Color.White
         (grade.value ?: 0.0) >= 4.5 -> MaterialTheme.colorScheme.onPrimaryContainer
         (grade.value ?: 0.0) >= 3.0 -> MaterialTheme.colorScheme.onSecondaryContainer
         grade.value != null -> MaterialTheme.colorScheme.onErrorContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    
+    var showDetails by remember { mutableStateOf(false) }
+
     Card(
+        onClick = { showDetails = true },
         colors = CardDefaults.cardColors(containerColor = color, contentColor = contentColor),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -176,12 +192,49 @@ fun GradeChip(grade: Grade) {
                     color = contentColor.copy(alpha = 0.8f)
                 )
             }
-            val d = grade.createdAt.date
             Text(
-                text = "${d.dayOfMonth.toString().padStart(2, '0')}.${d.monthNumber.toString().padStart(2, '0')}.${d.year}",
+                text = formatGradeDate(grade),
                 style = MaterialTheme.typography.labelSmall,
-                color = contentColor.copy(alpha = 0.6f)
+                color = contentColor.copy(alpha = 0.7f)
             )
         }
     }
+
+    if (showDetails) {
+        AlertDialog(
+            onDismissRequest = { showDetails = false },
+            confirmButton = {
+                TextButton(onClick = { showDetails = false }) { Text("Zamknij") }
+            },
+            title = { Text(grade.content) },
+            text = {
+                Column {
+                    Text(
+                        text = grade.column.subject.name,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    if (grade.column.name.isNotBlank()) {
+                        Text(
+                            text = grade.column.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (grade.column.weight > 0) {
+                        Text("Waga: ${grade.column.weight}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text("Data: ${formatGradeDate(grade)}", style = MaterialTheme.typography.bodyMedium)
+                    if (grade.comment.isNotBlank()) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(grade.comment, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        )
+    }
+}
+
+private fun formatGradeDate(grade: Grade): String {
+    val d = grade.createdAt.date
+    return "${d.dayOfMonth.toString().padStart(2, '0')}.${d.monthNumber.toString().padStart(2, '0')}.${d.year}"
 }
