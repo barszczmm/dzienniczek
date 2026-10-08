@@ -37,7 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.barszczmm.dzienniczek.util.htmlToPlainText
+import io.github.barszczmm.dzienniczek.util.rememberHtmlText
 import io.github.barszczmm.dzienniczek.navigation.Route
 import io.github.barszczmm.dzienniczek.viewmodel.MessageDetailsViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -135,7 +135,7 @@ fun MessageDetailsScreen(
                     }
                     
                     Text(
-                        text = htmlToPlainText(state.content ?: ""),
+                        text = rememberHtmlText(state.content ?: ""),
                         style = MaterialTheme.typography.bodyLarge
                     )
 

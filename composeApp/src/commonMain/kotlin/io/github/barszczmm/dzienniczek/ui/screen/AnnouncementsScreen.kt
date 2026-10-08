@@ -22,7 +22,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.barszczmm.dzienniczek.util.htmlToPlainText
+import io.github.barszczmm.dzienniczek.util.rememberHtmlText
 import io.github.barszczmm.dzienniczek.api.hebe.models.Announcement
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.AnnouncementsViewModel
@@ -78,7 +78,7 @@ private fun AnnouncementCard(announcement: Announcement, shape: Shape) {
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = htmlToPlainText(announcement.content),
+                    text = rememberHtmlText(announcement.content),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
