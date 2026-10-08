@@ -30,6 +30,7 @@ urlencoder = "1.6.0"
 datastore = "1.2.1"
 chucker = "4.3.1"
 androidx-work = "2.10.1"
+androidx-browser = "1.8.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -75,6 +76,7 @@ whyoleg-crypto-core = { module = "dev.whyoleg.cryptography:cryptography-core", v
 whyoleg-crypto-jdk = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography-kotlin" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-datastore-preferences-android = { group = "androidx.datastore", name = "datastore-preferences-android", version.ref = "datastore" }
+androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
 androidx-work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "androidx-work" }
 chucker-library = { module = "com.github.chuckerteam.chucker:library", version.ref = "chucker" }
 chucker-library-no-op = { module = "com.github.chuckerteam.chucker:library-no-op", version.ref = "chucker" }

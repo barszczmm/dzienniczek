@@ -74,6 +74,7 @@ kotlin {
             implementation(libs.whyoleg.crypto.jdk)
             implementation(libs.androidx.datastore.preferences.android)
             implementation(libs.androidx.work.runtime)
+            implementation(libs.androidx.browser)
             compileOnly(libs.chucker.library)
         }
         iosMain.dependencies {
