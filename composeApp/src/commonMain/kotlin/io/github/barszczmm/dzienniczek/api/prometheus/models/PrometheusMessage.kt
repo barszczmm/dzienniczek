@@ -47,3 +47,17 @@ data class PrometheusSendMessage(
     val odpowiedziana: String? = null,
     val przekazana: String? = null
 )
+
+/** GET api/WiadomoscOdpowiedzPrzekaz – data needed to reply to a message. */
+@Serializable
+data class PrometheusReplyDetails(
+    val apiGlobalKey: String = "",
+    /** The user's own mailbox (sender of the reply). */
+    val uzytkownikSkrzynkaGlobalKey: String = "",
+    /** Mailbox of the original sender (recipient of the reply). */
+    val nadawcaSkrzynkaGlobalKey: String = "",
+    val nadawcaSkrzynkaNazwa: String = "",
+    val temat: String = "",
+    val tresc: String = "",
+    val data: String = ""
+)

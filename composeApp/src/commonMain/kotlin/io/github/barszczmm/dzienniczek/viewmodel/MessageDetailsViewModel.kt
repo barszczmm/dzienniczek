@@ -16,6 +16,12 @@ data class MessageDetailsState(
     val error: String? = null
 )
 
+data class ReplyState(
+    val isSending: Boolean = false,
+    val sent: Boolean = false,
+    val error: String? = null
+)
+
 class MessageDetailsViewModel(
     private val session: ApiSession
 ) : ViewModel() {
@@ -24,6 +30,37 @@ class MessageDetailsViewModel(
     val state: StateFlow<MessageDetailsState> = _state
 
     private var loadedId: String? = null
+
+    private val _reply = MutableStateFlow(ReplyState())
+    val reply: StateFlow<ReplyState> = _reply
+
+    /** Replying works for Librus (Synergia web) and eduVulcan web messages, not for Hebe-only accounts. */
+    fun canReply(isHebe: Boolean): Boolean =
+        session.librusApi != null || (!isHebe && session.prometheusMessagesApi != null)
+
+    fun sendReply(id: String, isHebe: Boolean, text: String) {
+        if (text.isBlank() || _reply.value.isSending) return
+        viewModelScope.launch {
+            _reply.value = ReplyState(isSending = true)
+            try {
+                val librusApi = session.librusApi
+                val prometheusApi = session.prometheusMessagesApi
+                when {
+                    librusApi != null -> librusApi.replySynergiaMessage(id, text.trim())
+                    !isHebe && prometheusApi != null -> prometheusApi.reply(id, text.trim())
+                    else -> throw IllegalStateException("Odpowiadanie nie jest dostępne dla tego konta")
+                }
+                _reply.value = ReplyState(sent = true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _reply.value = ReplyState(error = e.message ?: "Nie udało się wysłać odpowiedzi")
+            }
+        }
+    }
+
+    fun resetReply() {
+        _reply.value = ReplyState()
+    }
 
     fun loadMessage(id: String, isHebe: Boolean, hebeContent: String?) {
         if (loadedId == id) return

@@ -1,5 +1,23 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,12 +47,42 @@ fun MessageDetailsScreen(
     viewModel: MessageDetailsViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val reply by viewModel.reply.collectAsStateWithLifecycle()
+    var composing by rememberSaveable(route.id) { mutableStateOf(false) }
+    var replyText by rememberSaveable(route.id) { mutableStateOf("") }
+    var confirmSend by remember { mutableStateOf(false) }
+
+    LaunchedEffect(reply.sent) {
+        if (reply.sent) {
+            composing = false
+            replyText = ""
+        }
+    }
 
     LaunchedEffect(route) {
         viewModel.loadMessage(
             id = route.id,
             isHebe = route.isHebe,
             hebeContent = route.hebeContent
+        )
+    }
+
+    if (confirmSend) {
+        AlertDialog(
+            onDismissRequest = { confirmSend = false },
+            title = { Text("Wysłać odpowiedź?") },
+            text = {
+                Text("Odpowiedź trafi do: ${state.sender ?: "nadawcy wiadomości"}. Nie da się jej cofnąć.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmSend = false
+                    viewModel.sendReply(route.id, route.isHebe, replyText)
+                }) { Text("Wyślij") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmSend = false }) { Text("Anuluj") }
+            }
         )
     }
 
@@ -89,6 +137,72 @@ fun MessageDetailsScreen(
                         text = stripHtml(state.content ?: ""),
                         style = MaterialTheme.typography.bodyLarge
                     )
+
+                    if (viewModel.canReply(route.isHebe)) {
+                        Spacer(Modifier.height(24.dp))
+                        HorizontalDivider()
+                        Spacer(Modifier.height(16.dp))
+
+                        if (reply.sent) {
+                            Text(
+                                text = "Odpowiedź została wysłana.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        if (!composing) {
+                            Button(
+                                onClick = { viewModel.resetReply(); composing = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Odpowiedz")
+                            }
+                        } else {
+                            OutlinedTextField(
+                                value = replyText,
+                                onValueChange = { replyText = it },
+                                label = { Text("Twoja odpowiedź") },
+                                minLines = 5,
+                                enabled = !reply.isSending,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            reply.error?.let {
+                                Spacer(Modifier.height(8.dp))
+                                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                TextButton(
+                                    onClick = { composing = false },
+                                    enabled = !reply.isSending
+                                ) { Text("Anuluj") }
+                                Spacer(Modifier.width(8.dp))
+                                Button(
+                                    onClick = { confirmSend = true },
+                                    enabled = replyText.isNotBlank() && !reply.isSending
+                                ) {
+                                    if (reply.isSending) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Wyślij")
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
             }
         }

@@ -5,6 +5,7 @@ import com.fleeksoft.ksoup.nodes.Document
 import io.github.barszczmm.dzienniczek.api.prometheus.models.PrometheusMailbox
 import io.github.barszczmm.dzienniczek.api.prometheus.models.PrometheusMessage
 import io.github.barszczmm.dzienniczek.api.prometheus.models.PrometheusMessageDetails
+import io.github.barszczmm.dzienniczek.api.prometheus.models.PrometheusReplyDetails
 import io.github.barszczmm.dzienniczek.api.prometheus.models.PrometheusSendMessage
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -28,12 +29,17 @@ import io.ktor.http.Cookie
 import io.ktor.http.URLProtocol
 import io.ktor.http.Url
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.http.parametersOf
 import io.ktor.serialization.kotlinx.json.json as ktorJson
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import net.thauvin.erik.urlencoder.UrlEncoderUtil
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class PrometheusMessagesApi(
     val tenant: String,
@@ -210,13 +216,51 @@ class PrometheusMessagesApi(
         }
     }
 
-    suspend fun replyForwardMessage(message: PrometheusSendMessage) {
+    /**
+     * Replies to a received message: reads the mailboxes from api/WiadomoscOdpowiedzPrzekaz
+     * and sends a new message to the original sender (as the web app and Wulkanowy do).
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun reply(apiGlobalKey: String, text: String) {
         initialize()
-        httpClient.post("$messagesBaseUrl/$tenant/api/WiadomoscOdpowiedzPrzekaz") {
+        val details: PrometheusReplyDetails = httpClient.get("$messagesBaseUrl/$tenant/api/WiadomoscOdpowiedzPrzekaz") {
+            parameter("apiGlobalKey", apiGlobalKey)
+            header("X-V-AppGuid", appGuid)
+            header("X-V-RequestVerificationToken", antiForgeryToken)
+            contentType(ContentType.Application.Json)
+        }.also { check(it.status.isSuccess()) { "eduVulcan: nie udało się przygotować odpowiedzi (${it.status.value})" } }
+            .body()
+        check(details.uzytkownikSkrzynkaGlobalKey.isNotBlank() && details.nadawcaSkrzynkaGlobalKey.isNotBlank()) {
+            "eduVulcan: brak danych skrzynki nadawcy"
+        }
+
+        val subject = details.temat.trim().let { if (it.startsWith("RE:", ignoreCase = true)) it else "RE: $it" }
+        val quoted = details.tresc.takeIf { it.isNotBlank() }?.let {
+            "<br><br>-----<br>${details.nadawcaSkrzynkaNazwa}, ${details.data}:<br>$it"
+        } ?: ""
+        // Built by hand so that every field (also the empty attachment list) is sent,
+        // matching the request of the eduVulcan web app.
+        val message = buildJsonObject {
+            put("globalKey", Uuid.random().toString())
+            put("watekGlobalKey", Uuid.random().toString())
+            put("nadawcaSkrzynkaGlobalKey", details.uzytkownikSkrzynkaGlobalKey)
+            putJsonArray("adresaciSkrzynkiGlobalKeys") { add(details.nadawcaSkrzynkaGlobalKey) }
+            put("tytul", subject)
+            put("tresc", textToHtml(text) + quoted)
+            putJsonArray("zalaczniki") { }
+        }
+        val response = httpClient.post("$messagesBaseUrl/$tenant/api/WiadomoscNowa") {
             header("X-V-AppGuid", appGuid)
             header("X-V-RequestVerificationToken", antiForgeryToken)
             contentType(ContentType.Application.Json)
             setBody(message)
         }
+        check(response.status.isSuccess()) {
+            "eduVulcan: wysyłanie nie powiodło się (${response.status.value}) ${response.bodyAsText().take(200)}"
+        }
     }
+
+    private fun textToHtml(text: String): String = text
+        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        .replace("\r\n", "\n").replace("\n", "<br>")
 }

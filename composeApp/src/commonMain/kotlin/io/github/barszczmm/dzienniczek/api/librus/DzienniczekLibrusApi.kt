@@ -7,6 +7,8 @@ import io.github.barszczmm.dzienniczek.api.librus.models.LibrusTokenResponse
 import io.github.barszczmm.dzienniczek.api.librus.models.api.*
 import com.fleeksoft.ksoup.Ksoup
 import io.ktor.client.HttpClient
+import io.ktor.http.Parameters
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.call.body
@@ -270,6 +272,94 @@ class DzienniczekLibrusApi(
             date = header["wysłano"] ?: header["data wysłania"],
             content = htmlToText(contentHtml)
         )
+    }
+
+    /**
+     * Replies to a received message through the Synergia web interface, the same way a
+     * browser does: opens the message, follows its "Odpowiedz" action, fills the reply
+     * form (keeping all fields Synergia pre-fills, like recipient, subject and quote) and
+     * submits it with the "Wyślij" button.
+     */
+    suspend fun replySynergiaMessage(id: String, text: String) {
+        val messageUrl = "https://synergia.librus.pl/wiadomosci/1/5/$id/f0"
+        val messageHtml = synergiaPage(messageUrl) { "container-message-content" in it }
+        val messageDoc = Ksoup.parse(messageHtml)
+
+        // 1. Open the reply form – a link/button, or a form on the message page.
+        val replyControl = messageDoc.select("a, input, button").firstOrNull { el ->
+            val label = (el.text() + " " + el.attr("value") + " " + el.attr("title")).lowercase()
+            "odpowiedz" in label
+        } ?: throw IllegalStateException("Librus: nie znaleziono przycisku „Odpowiedz”")
+
+        val ownForm = replyControl.closest("form")
+        val linkUrl = replyControl.attr("href").takeIf { it.isNotBlank() && !it.startsWith("javascript") }
+            ?: Regex("""['"](/wiadomosci/[^'"]+)['"]""").find(replyControl.attr("onclick"))?.groupValues?.get(1)
+        val (replyPageUrl, replyHtml) = synergiaMutex.withLock {
+            if (linkUrl != null) {
+                val url = resolveSynergiaUrl(messageUrl, linkUrl)
+                url to synergiaClient.get(url).bodyAsText()
+            } else if (ownForm != null) {
+                val params = formParameters(ownForm, submitter = replyControl)
+                val url = resolveSynergiaUrl(messageUrl, ownForm.attr("action"))
+                url to synergiaClient.submitForm(url, params).bodyAsText()
+            } else {
+                throw IllegalStateException("Librus: nie udało się otworzyć formularza odpowiedzi")
+            }
+        }
+
+        // 2. Fill and submit the reply form.
+        val replyDoc = Ksoup.parse(replyHtml)
+        val form = replyDoc.select("form").firstOrNull { it.selectFirst("textarea") != null }
+            ?: throw IllegalStateException("Librus: nie znaleziono formularza odpowiedzi")
+        val textarea = form.selectFirst("textarea")!!
+        val quoted = textarea.wholeText().trim()
+        val body = if (quoted.isBlank()) text else text.trimEnd() + "\n\n" + quoted
+        val sendButton = form.select("input[type=submit], button[type=submit], button:not([type]), input[type=button]")
+            .firstOrNull { el -> ("wyślij" in (el.text() + " " + el.attr("value")).lowercase()) }
+        val params = formParameters(form, submitter = sendButton, overrides = mapOf(textarea.attr("name") to body))
+
+        val result = synergiaMutex.withLock {
+            synergiaClient.submitForm(resolveSynergiaUrl(replyPageUrl, form.attr("action")), params).bodyAsText()
+        }
+        val resultText = Ksoup.parse(result).text().lowercase()
+        val sent = "wysłan" in resultText && "nie została wysłana" !in resultText
+        if (!sent) {
+            val error = Ksoup.parse(result).select(".red, .error, .alert, .warning").text().take(200)
+            throw IllegalStateException("Librus: wiadomość prawdopodobnie nie została wysłana. ${error.ifBlank { "" }}".trim())
+        }
+    }
+
+    /** All values a browser would submit for [form] (hidden/text inputs, checked boxes, selects, textareas). */
+    private fun formParameters(
+        form: com.fleeksoft.ksoup.nodes.Element,
+        submitter: com.fleeksoft.ksoup.nodes.Element?,
+        overrides: Map<String, String> = emptyMap()
+    ): Parameters = Parameters.build {
+        form.select("input, textarea, select").forEach { el ->
+            val name = el.attr("name")
+            if (name.isBlank() || el.hasAttr("disabled") || name in overrides) return@forEach
+            when (el.tagName().lowercase()) {
+                "textarea" -> append(name, el.wholeText())
+                "select" -> {
+                    val selected = el.select("option[selected]").toList().ifEmpty { el.select("option").toList().take(1) }
+                    selected.forEach { append(name, it.attr("value").ifBlank { it.text() }) }
+                }
+                else -> when (el.attr("type").lowercase()) {
+                    "submit", "button", "image", "reset", "file" -> Unit
+                    "checkbox", "radio" -> if (el.hasAttr("checked")) append(name, el.attr("value").ifBlank { "on" })
+                    else -> append(name, el.attr("value"))
+                }
+            }
+        }
+        overrides.forEach { (k, v) -> if (k.isNotBlank()) append(k, v) }
+        submitter?.attr("name")?.takeIf { it.isNotBlank() }?.let { append(it, submitter.attr("value")) }
+    }
+
+    private fun resolveSynergiaUrl(base: String, href: String): String = when {
+        href.isBlank() -> base
+        href.startsWith("http") -> href
+        href.startsWith("/") -> "https://synergia.librus.pl$href"
+        else -> base.substringBeforeLast("/") + "/" + href
     }
 
     /** Plain-text content of a message (used by the background checker). */
