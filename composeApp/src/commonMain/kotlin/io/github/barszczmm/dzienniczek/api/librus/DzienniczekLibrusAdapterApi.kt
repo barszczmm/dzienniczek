@@ -95,11 +95,16 @@ class DzienniczekLibrusAdapterApi(
         val textCategories = if (textGrades.isEmpty()) emptyList()
             else runCatching { librusApi.getTextGradeCategories() }.getOrDefault(emptyList())
         val skills = if (textGrades.isEmpty() && descriptiveGrades.isEmpty()) emptyList()
-            else runCatching { librusApi.getDescriptiveSkills() }.getOrDefault(emptyList())
+            else runCatching { librusApi.getDescriptiveSkills() }.getOrDefault(emptyList()) +
+                runCatching { librusApi.getDescriptiveGradeSkills() }.getOrDefault(emptyList())
+        val comments = runCatching {
+            librusApi.getDescriptiveGradeComments(descriptiveGrades.flatMap { g -> g.comments.orEmpty().map { it.id } })
+        }.getOrDefault(emptyList())
+        val users = runCatching { getUsers() }.getOrDefault(emptyList())
 
-        return LibrusMapper.mapGrades(grades, categories, subjects) +
-            LibrusMapper.mapTextGrades(textGrades, textCategories, skills, subjects) +
-            LibrusMapper.mapDescriptiveGrades(descriptiveGrades, skills, subjects)
+        return LibrusMapper.mapGrades(grades, categories, subjects, users) +
+            LibrusMapper.mapTextGrades(textGrades, textCategories, skills, subjects, users) +
+            LibrusMapper.mapDescriptiveGrades(descriptiveGrades, skills, subjects, comments, users)
     }
 
     override suspend fun getGradesAverages(

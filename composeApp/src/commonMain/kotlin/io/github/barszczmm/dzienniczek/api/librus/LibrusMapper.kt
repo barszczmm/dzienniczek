@@ -68,8 +68,10 @@ object LibrusMapper {
     fun mapGrades(
         librusGrades: List<LibrusGrade>,
         categories: List<LibrusGradeCategory>,
-        subjects: List<LibrusSubject>
+        subjects: List<LibrusSubject>,
+        users: List<LibrusUser> = emptyList()
     ): List<Grade> {
+        val userMap = users.associateBy { it.id }
         val categoryMap = categories.associateBy { it.id }
         val subjectMap = subjects.associateBy { it.id }
         
@@ -94,7 +96,7 @@ object LibrusMapper {
                 value = lGrade.grade.filter { it.isDigit() }.toDoubleOrNull(),
                 createdAt = date,
                 modifiedAt = date,
-                creator = Employee(0, "", lGrade.addedBy?.id?.toString() ?: "", ""),
+                creator = teacher(lGrade.addedBy?.id, userMap),
                 modifier = Employee(0, "", "", ""),
                 column = GradeColumn(
                     id = lGrade.category.id.toInt(),
@@ -134,6 +136,29 @@ object LibrusMapper {
         }.toInt()
     }
 
+    private fun teacher(id: Long?, users: Map<Long, LibrusUser>): Employee {
+        val user = id?.let { users[it] }
+        val name = if (user != null) "${user.firstName ?: ""} ${user.lastName ?: ""}".trim() else ""
+        return Employee(id?.toInt() ?: 0, user?.lastName ?: "", name, name)
+    }
+
+    /**
+     * Colour of a descriptive grade from its position on the school's scale, matching the
+     * official app (3 = blue, 2 = yellow; lower positions follow a traffic-light order).
+     */
+    fun descriptiveScaleColor(scaleIndex: Int?): Int = when {
+        scaleIndex == null -> 0
+        scaleIndex >= 4 -> 0xFF4CAF50.toInt() // green
+        scaleIndex == 3 -> 0xFF00BCD4.toInt() // blue (cyan) – "A" in the official app
+        scaleIndex == 2 -> 0xFFFFEB3B.toInt() // yellow – "B"
+        scaleIndex == 1 -> 0xFFFF9800.toInt() // orange
+        else -> 0xFFF44336.toInt()             // red
+    }
+
+    /** Letter at the start of a teacher's comment ("A praca samodzielna" → "A"). */
+    private fun leadingLetter(comment: String?): String? =
+        comment?.trim()?.let { Regex("^([A-F][+-]?)(\\s|$|[.,:;-])").find(it)?.groupValues?.get(1)?.uppercase() }
+
     private fun librusDateTime(text: String?): LocalDateTime =
         runCatching { LocalDateTime.parse(text!!.trim().replace(" ", "T").take(19)) }.getOrNull()
             ?: LocalDateTime(1970, 1, 1, 0, 0)
@@ -144,7 +169,7 @@ object LibrusMapper {
         comment: String,
         value: Double?,
         addDate: String?,
-        addedBy: Long?,
+        teacher: Employee,
         semester: Int?,
         subjectId: Long,
         subjectName: String,
@@ -163,7 +188,7 @@ object LibrusMapper {
             value = value,
             createdAt = date,
             modifiedAt = date,
-            creator = Employee(0, "", addedBy?.toString() ?: "", ""),
+            creator = teacher,
             modifier = Employee(0, "", "", ""),
             column = GradeColumn(
                 id = columnId.toInt(),
@@ -187,8 +212,10 @@ object LibrusMapper {
         grades: List<LibrusTextGrade>,
         categories: List<LibrusNamedColorItem>,
         skills: List<LibrusNamedColorItem>,
-        subjects: List<LibrusSubject>
+        subjects: List<LibrusSubject>,
+        users: List<LibrusUser> = emptyList()
     ): List<Grade> {
+        val userMap = users.associateBy { it.id }
         val categoryMap = categories.associateBy { it.id }
         val skillMap = skills.associateBy { it.id }
         val subjectMap = subjects.associateBy { it.id }
@@ -203,7 +230,7 @@ object LibrusMapper {
                 comment = text,
                 value = null,
                 addDate = g.addDate,
-                addedBy = g.addedBy?.id,
+                teacher = teacher(g.addedBy?.id, userMap),
                 semester = g.semester,
                 subjectId = subjectId,
                 subjectName = subjectMap[subjectId]?.name ?: "Brak nazwy",
@@ -214,35 +241,49 @@ object LibrusMapper {
         }
     }
 
-    /** /DescriptiveGrades: symbol (Map, e.g. "A") or value, coloured by the skill. */
+    /**
+     * /DescriptiveGrades (early education): the colour comes from the scale position
+     * ("Grade"), the letter (A, B…) from the teacher's comment, like in the official app.
+     */
     fun mapDescriptiveGrades(
         grades: List<LibrusDescriptiveGrade>,
         skills: List<LibrusNamedColorItem>,
-        subjects: List<LibrusSubject>
+        subjects: List<LibrusSubject>,
+        comments: List<LibrusGradeComment> = emptyList(),
+        users: List<LibrusUser> = emptyList()
     ): List<Grade> {
         val skillMap = skills.associateBy { it.id }
         val subjectMap = subjects.associateBy { it.id }
+        val commentMap = comments.associateBy { it.id }
+        val userMap = users.associateBy { it.id }
         return grades.mapNotNull { g ->
             val subjectId = g.subject?.id ?: return@mapNotNull null
-            val symbol = g.map?.trim()?.ifBlank { null } ?: g.realGradeValue?.trim()?.ifBlank { null } ?: return@mapNotNull null
+            val value = g.map?.trim()?.ifBlank { null } ?: g.realGradeValue?.trim()?.ifBlank { null }
+            val commentText = g.comments.orEmpty()
+                .mapNotNull { commentMap[it.id]?.text?.trim()?.takeIf { t -> t.isNotBlank() } }
+                .joinToString("\n")
+            val isScaleValue = value?.toDoubleOrNull() != null && g.scaleIndex != null
+            // Numeric values are shown as a coloured badge with the letter from the comment;
+            // other values (e.g. "np") are shown as text.
+            val content = when {
+                isScaleValue -> leadingLetter(commentText) ?: "●"
+                value != null -> value
+                else -> leadingLetter(commentText) ?: return@mapNotNull null
+            }
             val skill = g.skill?.let { skillMap[it.id] }
-            val comment = listOfNotNull(
-                g.realGradeValue?.trim()?.takeIf { it.isNotBlank() && it != symbol },
-                g.phrase?.trim()?.takeIf { it.isNotBlank() }
-            ).joinToString("\n")
             descriptiveGrade(
                 id = g.id,
-                content = symbol,
-                comment = comment,
+                content = content,
+                comment = commentText,
                 value = null,
                 addDate = g.addDate,
-                addedBy = g.addedBy?.id,
+                teacher = teacher(g.addedBy?.id, userMap),
                 semester = g.semester,
                 subjectId = subjectId,
                 subjectName = subjectMap[subjectId]?.name ?: "Brak nazwy",
                 columnId = skill?.id ?: 0,
                 columnName = skill?.name ?: "Ocena opisowa",
-                color = librusColor(skill?.color)
+                color = if (isScaleValue) descriptiveScaleColor(g.scaleIndex) else 0
             )
         }
     }

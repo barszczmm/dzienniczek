@@ -223,6 +223,9 @@ fun GradeChip(grade: Grade) {
                     if (grade.column.weight > 0) {
                         Text("Waga: ${grade.column.weight}", style = MaterialTheme.typography.bodyMedium)
                     }
+                    if (grade.creator.displayName.isNotBlank()) {
+                        Text("Nauczyciel: ${grade.creator.displayName}", style = MaterialTheme.typography.bodyMedium)
+                    }
                     Text("Data: ${formatGradeDate(grade)}", style = MaterialTheme.typography.bodyMedium)
                     if (grade.comment.isNotBlank()) {
                         Spacer(Modifier.height(12.dp))

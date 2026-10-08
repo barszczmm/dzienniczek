@@ -373,6 +373,32 @@ class DzienniczekLibrusApi(
             ?: run { throwIfApiError(responseText); emptyList() }
     }
 
+    /** Skills of /DescriptiveGrades (the grades link to DescriptiveGrades/Skills/{id}). */
+    suspend fun getDescriptiveGradeSkills(): List<LibrusNamedColorItem> {
+        val responseText = apiGet("${LibrusConstants.API_URL}/DescriptiveGrades/Skills")
+        return json.decodeFromString<LibrusSkillsResponse>(responseText).skills.orEmpty()
+    }
+
+    /** All comments of descriptive grades; falls back to fetching the given ids one by one. */
+    suspend fun getDescriptiveGradeComments(ids: List<Long>): List<LibrusGradeComment> {
+        if (ids.isEmpty()) return emptyList()
+        val bulk = runCatching {
+            json.decodeFromString<LibrusGradeCommentsResponse>(
+                apiGet("${LibrusConstants.API_URL}/DescriptiveGrades/Comments")
+            ).comments
+        }.getOrNull()
+        if (!bulk.isNullOrEmpty()) return bulk
+        // Some accounts only allow single comments; ids are joined with commas like in the API.
+        return ids.chunked(50).flatMap { chunk ->
+            runCatching {
+                val response = json.decodeFromString<LibrusGradeCommentsResponse>(
+                    apiGet("${LibrusConstants.API_URL}/DescriptiveGrades/Comments/${chunk.joinToString(",")}")
+                )
+                response.comments ?: listOfNotNull(response.comment)
+            }.getOrDefault(emptyList())
+        }
+    }
+
     suspend fun getTextGradeCategories(): List<LibrusNamedColorItem> {
         val responseText = apiGet("${LibrusConstants.API_URL}/TextGrades/Categories")
         return json.decodeFromString<LibrusTextGradeCategoriesResponse>(responseText).categories.orEmpty()

@@ -91,13 +91,29 @@ data class LibrusDescriptiveGradesResponse(
 data class LibrusDescriptiveGrade(
     @SerialName("Id") val id: Long,
     @SerialName("Map") val map: String? = null,
+    /** Position on the school's scale (e.g. 3 = highest/blue, 2 = yellow…). */
+    @SerialName("Grade") val scaleIndex: Int? = null,
     @SerialName("RealGradeValue") val realGradeValue: String? = null,
     @SerialName("Phrase") val phrase: String? = null,
     @SerialName("Semester") val semester: Int? = null,
     @SerialName("AddDate") val addDate: String? = null,
     @SerialName("Subject") val subject: LibrusIdReference? = null,
     @SerialName("AddedBy") val addedBy: LibrusIdReference? = null,
-    @SerialName("Skill") val skill: LibrusIdReference? = null
+    @SerialName("Skill") val skill: LibrusIdReference? = null,
+    @SerialName("Comments") val comments: List<LibrusIdReference>? = null
+)
+
+/** Teacher's comment of a descriptive grade – often holds the letter (A, B…). */
+@Serializable
+data class LibrusGradeComment(
+    @SerialName("Id") val id: Long,
+    @SerialName("Text") val text: String? = null
+)
+
+@Serializable
+data class LibrusGradeCommentsResponse(
+    @SerialName("Comments") val comments: List<LibrusGradeComment>? = null,
+    @SerialName("Comment") val comment: LibrusGradeComment? = null
 )
 
 /** Categories of text grades (/TextGrades/Categories) and skills (/DescriptiveTextGrades/Skills). */
