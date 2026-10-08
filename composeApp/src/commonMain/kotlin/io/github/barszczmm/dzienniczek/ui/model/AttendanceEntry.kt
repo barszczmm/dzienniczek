@@ -16,7 +16,10 @@ enum class AttendanceKind {
 data class AttendanceEntry(
     val id: String,
     val date: LocalDate,
+    /** Lesson in the day (1 = first lesson). */
     val lessonNumber: Int?,
+    /** Lesson time, e.g. "09:10–09:55", when the journal provides it. */
+    val time: String? = null,
     val subject: String,
     val kind: AttendanceKind,
     /** Name of the type as the journal calls it, e.g. "Nieobecność usprawiedliwiona". */

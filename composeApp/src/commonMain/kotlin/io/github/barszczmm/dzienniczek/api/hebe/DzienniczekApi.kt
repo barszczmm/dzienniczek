@@ -139,7 +139,10 @@ open class DzienniczekApi(
             AttendanceEntry(
                 id = "v${lesson.id}",
                 date = lesson.day,
-                lessonNumber = lesson.lessonNumber ?: lesson.timeSlot.position.takeIf { it > 0 },
+                // TimeSlot.Position is the lesson in the day (3 = third lesson); LessonNumber is
+                // the running number of lessons of that subject (e.g. 19th maths lesson).
+                lessonNumber = lesson.timeSlot.position.takeIf { it > 0 },
+                time = "${lesson.timeSlot.start.toString().take(5)}–${lesson.timeSlot.end.toString().take(5)}",
                 subject = lesson.subject?.name ?: "",
                 kind = kind,
                 typeName = type.name,

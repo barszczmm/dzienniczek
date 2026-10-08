@@ -118,7 +118,7 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
             text = {
                 Column {
                     Text("Data: ${entry.date.label()}.${entry.date.year}")
-                    entry.lessonNumber?.let { Text("Lekcja: $it") }
+                    entry.lessonNumber?.let { Text("Lekcja: $it" + (entry.time?.let { t -> " ($t)" } ?: "")) }
                     if (entry.subject.isNotBlank()) Text("Przedmiot: ${entry.subject}")
                     if (entry.teacher.isNotBlank()) Text("Nauczyciel: ${entry.teacher}")
                 }
@@ -251,7 +251,7 @@ private fun DayKindCard(kind: AttendanceKind, entries: List<AttendanceEntry>, on
             entries.forEach { entry ->
                 Text(
                     text = listOfNotNull(entry.lessonNumber?.let { "$it." }, entry.subject.ifBlank { null })
-                        .joinToString(" ").ifBlank { "lekcja" },
+                        .joinToString(" ").ifBlank { "lekcja" } + (entry.time?.let { "  ·  $it" } ?: ""),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier
                         .fillMaxWidth()
