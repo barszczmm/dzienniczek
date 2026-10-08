@@ -45,6 +45,6 @@ val appModule = module {
     viewModel { AnnouncementsViewModel(get()) }
     viewModel { MessagesViewModel(get()) }
     viewModel { MessageDetailsViewModel(get()) }
-    viewModel { SettingsViewModel(get()) }
+    viewModel { SettingsViewModel(get(), get()) }
     viewModel { StartViewModel(get()) }
 }

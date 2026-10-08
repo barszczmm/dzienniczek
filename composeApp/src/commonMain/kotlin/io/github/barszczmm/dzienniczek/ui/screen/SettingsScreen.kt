@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +35,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val polling by viewModel.messagePolling.collectAsStateWithLifecycle()
+    val diagnosticsRunning by viewModel.diagnosticsRunning.collectAsStateWithLifecycle()
     val requestNotificationPermission = rememberNotificationPermissionRequest()
 
     Column(
@@ -91,6 +93,36 @@ fun SettingsScreen(
                     Icon(imageVector = Icons.Outlined.Refresh, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Sprawdź nowe wiadomości teraz")
+                }
+            }
+        }
+
+        if (viewModel.isLibrusActive) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Diagnostyka",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Pobiera surowe dane ocen z Librusa dla aktywnego ucznia i otwiera " +
+                            "udostępnianie (np. do skopiowania). Dane zawierają oceny ucznia.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.exportLibrusDiagnostics() },
+                        enabled = !diagnosticsRunning,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Share, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (diagnosticsRunning) "Pobieranie…" else "Eksportuj dane diagnostyczne")
+                    }
                 }
             }
         }

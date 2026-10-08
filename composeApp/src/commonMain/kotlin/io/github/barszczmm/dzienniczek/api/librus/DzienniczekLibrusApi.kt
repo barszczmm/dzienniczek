@@ -358,6 +358,9 @@ class DzienniczekLibrusApi(
         }
     }
 
+    /** Raw JSON of an API resource (relative to api.librus.pl/2.0), for diagnostics. */
+    suspend fun rawGet(resource: String): String = apiGet("${LibrusConstants.API_URL}/$resource")
+
     suspend fun getTextGrades(): List<LibrusTextGrade> {
         val responseText = apiGet("${LibrusConstants.API_URL}/BaseTextGrades")
         return json.decodeFromString<LibrusTextGradesResponse>(responseText).grades
