@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Looks6
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.barszczmm.dzienniczek.api.hebe.models.LuckyNumber
 import io.github.barszczmm.dzienniczek.navigation.Route
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.StartViewModel
@@ -40,7 +38,6 @@ import org.koin.compose.viewmodel.koinViewModel
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StartScreen(
-    luckyNumber: LuckyNumber?, 
     onNavigate: (Route) -> Unit,
     viewModel: StartViewModel = koinViewModel()
 ) {
@@ -75,58 +72,6 @@ fun StartScreen(
             }
         }
 
-        item {
-            if (luckyNumber != null && luckyNumber.number != 0) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Star,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                        Column {
-                            Text("Szczęśliwy numerek", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                text = "${luckyNumber.number}",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            } else {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Star,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                        Text(
-                            text = "Brak informacji o szczęśliwym numerku",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-            }
-        }
 
         item {
             ElevatedCard(
