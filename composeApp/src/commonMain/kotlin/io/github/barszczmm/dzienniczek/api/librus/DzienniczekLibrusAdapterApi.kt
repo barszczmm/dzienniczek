@@ -1,5 +1,9 @@
 package io.github.barszczmm.dzienniczek.api.librus
 
+import io.github.barszczmm.dzienniczek.api.hebe.models.Account
+import io.github.barszczmm.dzienniczek.api.hebe.models.semesterOf
+import io.github.barszczmm.dzienniczek.ui.model.AttendanceKind
+import io.github.barszczmm.dzienniczek.ui.model.AttendanceEntry
 import io.github.barszczmm.dzienniczek.api.hebe.DzienniczekApi
 import io.github.barszczmm.dzienniczek.api.hebe.DzienniczekHttpClient
 import io.github.barszczmm.dzienniczek.api.hebe.credentials.ICredential
@@ -165,6 +169,44 @@ class DzienniczekLibrusAdapterApi(
         val subjects = getSubjects()
         val users = getUsers()
         return LibrusMapper.mapHomework(homework, subjects, users)
+    }
+
+    override suspend fun getAttendance(
+        account: Account,
+        dateFrom: LocalDate,
+        dateTo: LocalDate
+    ): List<AttendanceEntry> {
+        val attendances = librusApi.getAttendances()
+        val types = librusApi.getAttendanceTypes().associateBy { it.id }
+        val lessons = runCatching { librusApi.getLessonRefs() }.getOrDefault(emptyList()).associateBy { it.id }
+        val subjects = getSubjects().associateBy { it.id }
+        val users = runCatching { getUsers() }.getOrDefault(emptyList()).associateBy { it.id }
+
+        return attendances.mapNotNull { a ->
+            val date = a.date?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() } ?: return@mapNotNull null
+            if (date < dateFrom || date > dateTo) return@mapNotNull null
+            val type = a.type?.let { types[it.id] }
+            val kind = when (type?.standardType?.id ?: type?.id) {
+                1L -> AttendanceKind.ABSENT
+                2L -> AttendanceKind.LATE
+                3L -> AttendanceKind.ABSENT_EXCUSED
+                4L -> AttendanceKind.RELEASED
+                else -> return@mapNotNull null // present (or a custom presence kind)
+            }
+            val lesson = a.lesson?.let { lessons[it.id] }
+            val teacherId = a.addedBy?.id ?: lesson?.teacher?.id
+            val teacher = teacherId?.let { users[it] }
+            AttendanceEntry(
+                id = "l${a.id.content}",
+                date = date,
+                lessonNumber = a.lessonNo,
+                subject = lesson?.subject?.id?.let { subjects[it]?.name } ?: "",
+                kind = kind,
+                typeName = type?.name ?: kind.name,
+                teacher = teacher?.let { "${it.firstName ?: ""} ${it.lastName ?: ""}".trim() } ?: "",
+                semester = a.semester ?: account.semesterOf(date)
+            )
+        }
     }
 
     override suspend fun getNotes(

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.Looks6
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +73,38 @@ fun StartScreen(
             }
         }
 
+
+        if (state.unexcusedAbsences > 0) {
+            item {
+                ElevatedCard(
+                    onClick = { onNavigate(Route.Attendance) },
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Icon(imageVector = Icons.Outlined.EventBusy, contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = unexcusedLabel(state.unexcusedAbsences),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "w tym roku szkolnym – dotknij, aby zobaczyć",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
         item {
             ElevatedCard(
@@ -205,4 +238,11 @@ private fun EmptinessText(message: String) {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+/** "1 nieusprawiedliwiona nieobecność", "3 nieusprawiedliwione nieobecności", "5 nieusprawiedliwionych nieobecności". */
+private fun unexcusedLabel(n: Int): String = when {
+    n == 1 -> "1 nieusprawiedliwiona nieobecność"
+    n % 10 in 2..4 && n % 100 !in 12..14 -> "$n nieusprawiedliwione nieobecności"
+    else -> "$n nieusprawiedliwionych nieobecności"
 }

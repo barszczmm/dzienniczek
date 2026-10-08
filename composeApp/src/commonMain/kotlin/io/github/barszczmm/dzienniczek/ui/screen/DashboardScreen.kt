@@ -21,12 +21,14 @@ import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backpack
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Looks6
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Backpack
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Looks6
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -75,7 +77,7 @@ private enum class DashboardTab(
 ) {
     START("Start", Icons.Outlined.Home, Icons.Filled.Home, Route.Start),
     TIMETABLE("Plan", Icons.Outlined.Backpack, Icons.Filled.Backpack, Route.Timetable),
-    EXAMS("Sprawdziany", Icons.Outlined.CalendarToday, Icons.Filled.CalendarToday, Route.Exams),
+    ATTENDANCE("Obecność", Icons.Outlined.EventBusy, Icons.Filled.EventBusy, Route.Attendance),
     MESSAGES("Wiadomości", Icons.AutoMirrored.Outlined.Message, Icons.AutoMirrored.Filled.Message, Route.Messages),
     MORE("Więcej", Icons.Outlined.MoreHoriz, Icons.Filled.MoreHoriz, Route.More)
 }
@@ -100,10 +102,11 @@ fun DashboardScreen(
 
     // Screens opened from "Więcej" – the "Więcej" tab stays selected and a back arrow is shown.
     val moreRoutes = listOf(
+        Route.Homework,
+        Route.Exams,
         Route.Grades,
         Route.Notes,
         Route.Announcements,
-        Route.Homework,
         Route.Account,
         Route.Settings
     )
@@ -121,6 +124,7 @@ fun DashboardScreen(
         is Route.Messages -> "Wiadomości"
         is Route.MessageDetails -> "Wiadomość"
         is Route.Account -> "Konto"
+        is Route.Attendance -> "Nieobecności"
         is Route.Settings -> "Ustawienia"
         else -> "Dzienniczek"
     }
@@ -335,6 +339,7 @@ fun DashboardScreen(
                 entry<Route.Messages> { MessagesScreen(onNavigate = { backStack.add(it) }) }
                 entry<Route.MessageDetails> { MessageDetailsScreen(route = it) }
                 entry<Route.Settings> { SettingsScreen() }
+                entry<Route.Attendance> { AttendanceScreen() }
                 entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
             }
         )

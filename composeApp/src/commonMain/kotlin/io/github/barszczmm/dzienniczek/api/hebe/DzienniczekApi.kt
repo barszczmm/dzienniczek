@@ -1,6 +1,8 @@
 package io.github.barszczmm.dzienniczek.api.hebe
 
 import io.github.barszczmm.dzienniczek.api.hebe.credentials.ICredential
+import io.github.barszczmm.dzienniczek.ui.model.AttendanceEntry
+import io.github.barszczmm.dzienniczek.ui.model.AttendanceKind
 import io.github.barszczmm.dzienniczek.api.hebe.models.*
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -98,6 +100,53 @@ open class DzienniczekApi(
             pupilId = pupilId
         )
         return dzienniczekJson.decodeFromJsonElement(envelope!!)
+    }
+
+    /**
+     * Absences and late arrivals between [dateFrom] and [dateTo], read from the lessons
+     * (eduVulcan returns the presence type with each lesson). Presence is skipped.
+     */
+    open suspend fun getAttendance(
+        account: Account,
+        dateFrom: LocalDate,
+        dateTo: LocalDate
+    ): List<AttendanceEntry> {
+        val lessons = mutableListOf<Lesson>()
+        var lastId = INT_MIN
+        for (pageNo in 0 until 20) {
+            val page = getLessons(
+                restUrl = account.unit.restUrl,
+                pupilId = account.pupil.id,
+                dateFrom = dateFrom,
+                dateTo = dateTo,
+                lastId = lastId,
+                pageSize = DEFAULT_PAGE_SIZE
+            )
+            lessons += page
+            if (page.size < DEFAULT_PAGE_SIZE) break
+            val nextLastId = page.maxOf { it.id }
+            if (nextLastId == lastId) break
+            lastId = nextLastId
+        }
+        return lessons.distinctBy { it.id }.mapNotNull { lesson ->
+            val type = lesson.presenceType ?: return@mapNotNull null
+            val kind = when {
+                type.late -> if (type.absenceJustified) AttendanceKind.LATE_EXCUSED else AttendanceKind.LATE
+                type.absence -> if (type.absenceJustified) AttendanceKind.ABSENT_EXCUSED else AttendanceKind.ABSENT
+                type.legalAbsence -> AttendanceKind.RELEASED
+                else -> return@mapNotNull null
+            }
+            AttendanceEntry(
+                id = "v${lesson.id}",
+                date = lesson.day,
+                lessonNumber = lesson.lessonNumber ?: lesson.timeSlot.position.takeIf { it > 0 },
+                subject = lesson.subject?.name ?: "",
+                kind = kind,
+                typeName = type.name,
+                teacher = lesson.teacherPrimary.displayName,
+                semester = account.semesterOf(lesson.day)
+            )
+        }
     }
 
     suspend fun getDuty(

@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import io.github.barszczmm.dzienniczek.api.hebe.models.Exam
 import io.github.barszczmm.dzienniczek.api.hebe.models.Grade
 import io.github.barszczmm.dzienniczek.api.hebe.models.Homework
+import io.github.barszczmm.dzienniczek.data.AttendanceRepository
 import io.github.barszczmm.dzienniczek.session.ApiSession
+import io.github.barszczmm.dzienniczek.ui.model.AttendanceKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -23,11 +25,14 @@ data class StartState(
     val recentGrades: List<Grade> = emptyList(),
     val upcomingExams: List<Exam> = emptyList(),
     val upcomingHomework: List<Homework> = emptyList(),
+    /** Unexcused absences in the current school year (lessons). */
+    val unexcusedAbsences: Int = 0,
     val error: String? = null
 )
 
 class StartViewModel(
-    private val session: ApiSession
+    private val session: ApiSession,
+    private val attendanceRepository: AttendanceRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(StartState(isLoading = true))
@@ -93,10 +98,22 @@ class StartViewModel(
                     upcomingExams = exams,
                     upcomingHomework = homework
                 )
+                loadAttendanceSummary()
             } catch (e: Exception) {
                 _state.value = StartState(
                     isLoading = false,
                     error = e.message ?: "Błąd ładowania podsumowania"
+                )
+            }
+        }
+    }
+
+    /** Loaded after the rest, so a slow attendance download doesn't delay the start screen. */
+    private fun loadAttendanceSummary() {
+        viewModelScope.launch {
+            runCatching { attendanceRepository.get() }.onSuccess { entries ->
+                _state.value = _state.value.copy(
+                    unexcusedAbsences = entries.count { it.kind == AttendanceKind.ABSENT }
                 )
             }
         }

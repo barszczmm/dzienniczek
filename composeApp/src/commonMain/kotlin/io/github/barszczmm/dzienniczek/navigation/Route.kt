@@ -65,5 +65,8 @@ sealed interface Route : NavKey {
     data object Settings : Route
 
     @Serializable
+    data object Attendance : Route
+
+    @Serializable
     data class MessageDetails(val id: String, val isHebe: Boolean, val hebeContent: String? = null) : Route
 }
