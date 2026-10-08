@@ -4,6 +4,8 @@ import io.github.barszczmm.dzienniczek.notifications.MessageChecker
 import io.github.barszczmm.dzienniczek.platform.createHttpClient
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.session.SessionStorage
+import io.github.barszczmm.dzienniczek.settings.AppSettings
+import io.github.barszczmm.dzienniczek.viewmodel.SettingsViewModel
 import io.github.barszczmm.dzienniczek.session.createSessionDataStore
 import io.github.barszczmm.dzienniczek.viewmodel.AccountViewModel
 import io.github.barszczmm.dzienniczek.viewmodel.AnnouncementsViewModel
@@ -29,6 +31,7 @@ val appModule = module {
     single { createSessionDataStore() }
     single { SessionStorage(get(), get()) }
     single { MessageChecker(get(), get()) }
+    single { AppSettings(get()) }
 
     viewModel { LoginViewModel(get(), get(), get()) }
     viewModel { SelectStudentsViewModel(get(), get(), get()) }
@@ -42,5 +45,6 @@ val appModule = module {
     viewModel { AnnouncementsViewModel(get()) }
     viewModel { MessagesViewModel(get()) }
     viewModel { MessageDetailsViewModel(get()) }
+    viewModel { SettingsViewModel(get()) }
     viewModel { StartViewModel(get()) }
 }

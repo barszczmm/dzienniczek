@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.EmojiEvents
 import androidx.compose.material.icons.outlined.Looks6
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -39,7 +40,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.barszczmm.dzienniczek.navigation.Route
-import io.github.barszczmm.dzienniczek.notifications.triggerMessageCheckNow
 import io.github.barszczmm.dzienniczek.session.StudentSession
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.update.getAppVersion
@@ -53,7 +53,8 @@ fun MoreScreen(onNavigate: (Route) -> Unit) {
         Triple(Icons.Outlined.EmojiEvents, "Uwagi i osiągnięcia", Route.Notes),
         Triple(Icons.AutoMirrored.Outlined.Announcement, "Ogłoszenia", Route.Announcements),
         Triple(Icons.Outlined.Book, "Zadania domowe", Route.Homework),
-        Triple(Icons.Outlined.Person, "Konto i uczniowie", Route.Account)
+        Triple(Icons.Outlined.Person, "Konto i uczniowie", Route.Account),
+        Triple(Icons.Outlined.Settings, "Ustawienia", Route.Settings)
     )
 
     Column(
@@ -157,17 +158,6 @@ fun AccountScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
-
-        OutlinedButton(
-            onClick = { triggerMessageCheckNow() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(imageVector = Icons.AutoMirrored.Outlined.Message, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
-            Text("Sprawdź nowe wiadomości teraz")
-        }
-
-        Spacer(Modifier.height(8.dp))
 
         OutlinedButton(
             onClick = onNavigateToAddAccount,

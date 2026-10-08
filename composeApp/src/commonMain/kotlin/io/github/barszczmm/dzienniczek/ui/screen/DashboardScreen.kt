@@ -105,7 +105,8 @@ fun DashboardScreen(
         Route.Notes,
         Route.Announcements,
         Route.Homework,
-        Route.Account
+        Route.Account,
+        Route.Settings
     )
     val isSubScreen = currentRoute is Route.MessageDetails || currentRoute in moreRoutes
 
@@ -121,6 +122,7 @@ fun DashboardScreen(
         is Route.Messages -> "Wiadomości"
         is Route.MessageDetails -> "Wiadomość"
         is Route.Account -> "Konto"
+        is Route.Settings -> "Ustawienia"
         else -> "Dzienniczek"
     }
 
@@ -353,6 +355,7 @@ fun DashboardScreen(
                 entry<Route.Announcements> { AnnouncementsScreen() }
                 entry<Route.Messages> { MessagesScreen(onNavigate = { backStack.add(it) }) }
                 entry<Route.MessageDetails> { MessageDetailsScreen(route = it) }
+                entry<Route.Settings> { SettingsScreen() }
                 entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
             }
         )
