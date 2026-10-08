@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.barszczmm.dzienniczek.util.htmlToPlainText
 import io.github.barszczmm.dzienniczek.navigation.Route
 import io.github.barszczmm.dzienniczek.viewmodel.MessageDetailsViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -134,7 +135,7 @@ fun MessageDetailsScreen(
                     }
                     
                     Text(
-                        text = stripHtml(state.content ?: ""),
+                        text = htmlToPlainText(state.content ?: ""),
                         style = MaterialTheme.typography.bodyLarge
                     )
 
@@ -207,15 +208,4 @@ fun MessageDetailsScreen(
             }
         }
     }
-}
-
-private fun stripHtml(html: String): String {
-    return html.replace(Regex("<br\\s*/?>"), "\n")
-        .replace(Regex("<[^>]*>"), "")
-        .replace("&nbsp;", " ")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
 }

@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.barszczmm.dzienniczek.util.htmlToPlainText
 import io.github.barszczmm.dzienniczek.api.hebe.models.Homework
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.HomeworkViewModel
@@ -164,7 +165,7 @@ fun HomeworkCard(
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                text = hw.content,
+                text = htmlToPlainText(hw.content),
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(4.dp))

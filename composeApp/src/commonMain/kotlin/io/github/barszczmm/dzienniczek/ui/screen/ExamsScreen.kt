@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.barszczmm.dzienniczek.util.htmlToPlainText
 import io.github.barszczmm.dzienniczek.api.hebe.models.Exam
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.ExamsViewModel
@@ -180,7 +181,7 @@ fun ExamCard(
             if (exam.content.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = exam.content,
+                    text = htmlToPlainText(exam.content),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.barszczmm.dzienniczek.util.htmlToPlainText
 import io.github.barszczmm.dzienniczek.api.hebe.models.Note
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.NotesViewModel
@@ -133,7 +134,7 @@ private fun NoteCard(note: Note, shape: Shape) {
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = note.content,
+                text = htmlToPlainText(note.content),
                 style = MaterialTheme.typography.bodyMedium,
                 color = onContainerColor
             )
