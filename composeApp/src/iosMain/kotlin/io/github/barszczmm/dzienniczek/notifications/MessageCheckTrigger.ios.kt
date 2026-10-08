@@ -1,5 +1,6 @@
 package io.github.barszczmm.dzienniczek.notifications
 
-actual fun triggerMessageCheckNow() {
-    // Background message checks are implemented only on Android.
-}
+// Background message checks are implemented only on Android.
+actual fun triggerMessageCheckNow() {}
+
+actual fun setBackgroundMessageChecks(enabled: Boolean) {}

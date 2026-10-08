@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backpack
 import androidx.compose.material.icons.filled.CalendarToday
@@ -71,9 +73,9 @@ private enum class DashboardTab(
     val route: Route
 ) {
     START("Start", Icons.Outlined.Home, Icons.Filled.Home, Route.Start),
-    GRADES("Oceny", Icons.Outlined.Looks6, Icons.Filled.Looks6, Route.Grades),
     TIMETABLE("Plan", Icons.Outlined.Backpack, Icons.Filled.Backpack, Route.Timetable),
     EXAMS("Sprawdziany", Icons.Outlined.CalendarToday, Icons.Filled.CalendarToday, Route.Exams),
+    MESSAGES("Wiadomości", Icons.AutoMirrored.Outlined.Message, Icons.AutoMirrored.Filled.Message, Route.Messages),
     MORE("Więcej", Icons.Outlined.MoreHoriz, Icons.Filled.MoreHoriz, Route.More)
 }
 
@@ -95,11 +97,16 @@ fun DashboardScreen(
     val backStack = remember { mutableStateListOf<Route>(Route.Start) }
     val currentRoute = backStack.lastOrNull()
 
-    val isSubScreen = currentRoute is Route.MessageDetails || currentRoute in listOf(
+    // Screens opened from "Więcej" – the "Więcej" tab stays selected and a back arrow is shown.
+    val moreRoutes = listOf(
+        Route.Grades,
         Route.Notes,
         Route.Announcements,
-        Route.Account
+        Route.Homework,
+        Route.Account,
+        Route.Settings
     )
+    val isSubScreen = currentRoute is Route.MessageDetails || currentRoute in moreRoutes
 
     val pageTitle = when (currentRoute) {
         is Route.Start -> "Start"
@@ -113,6 +120,7 @@ fun DashboardScreen(
         is Route.Messages -> "Wiadomości"
         is Route.MessageDetails -> "Wiadomość"
         is Route.Account -> "Konto"
+        is Route.Settings -> "Ustawienia"
         else -> "Dzienniczek"
     }
 
@@ -278,7 +286,9 @@ fun DashboardScreen(
                             )
                         },
                         label = { Text(tab.label) },
-                        selected = currentRoute == tab.route || (tab.route == Route.More && currentRoute in listOf(Route.Notes, Route.Announcements, Route.Account, Route.Homework, Route.Messages) || (currentRoute is Route.MessageDetails && tab.route == Route.More)),
+                        selected = currentRoute == tab.route ||
+                            (tab.route == Route.More && currentRoute in moreRoutes) ||
+                            (tab.route == Route.Messages && currentRoute is Route.MessageDetails),
                         onClick = {
                             if (currentRoute != tab.route) {
                                 backStack.clear()
@@ -314,6 +324,7 @@ fun DashboardScreen(
                 entry<Route.Announcements> { AnnouncementsScreen() }
                 entry<Route.Messages> { MessagesScreen(onNavigate = { backStack.add(it) }) }
                 entry<Route.MessageDetails> { MessageDetailsScreen(route = it) }
+                entry<Route.Settings> { SettingsScreen() }
                 entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
             }
         )
