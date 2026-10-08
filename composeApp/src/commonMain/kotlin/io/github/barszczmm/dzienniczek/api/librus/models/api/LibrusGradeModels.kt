@@ -91,7 +91,7 @@ data class LibrusDescriptiveGradesResponse(
 data class LibrusDescriptiveGrade(
     @SerialName("Id") val id: Long,
     @SerialName("Map") val map: String? = null,
-    /** Position on the school's scale (e.g. 3 = highest/blue, 2 = yellow…). */
+    /** Grade range: 1 = 1…2+, 2 = 3−…4+, 3 = 5−…6 (see /DescriptiveGrades/Types). */
     @SerialName("Grade") val scaleIndex: Int? = null,
     @SerialName("RealGradeValue") val realGradeValue: String? = null,
     @SerialName("Phrase") val phrase: String? = null,

@@ -143,16 +143,16 @@ object LibrusMapper {
     }
 
     /**
-     * Colour of a descriptive grade from its position on the school's scale, matching the
-     * official app (3 = blue, 2 = yellow; lower positions follow a traffic-light order).
+     * Colour of a descriptive grade from its range ("Grade" = GradeRange in
+     * /DescriptiveGrades/Types): 3 = 5−…6 (blue, "A"), 2 = 3−…4+ (yellow, "B"),
+     * 1 = 1…2+ (red). Blue and yellow match the official app.
      */
-    fun descriptiveScaleColor(scaleIndex: Int?): Int = when {
-        scaleIndex == null -> 0
-        scaleIndex >= 4 -> 0xFF4CAF50.toInt() // green
-        scaleIndex == 3 -> 0xFF00BCD4.toInt() // blue (cyan) – "A" in the official app
-        scaleIndex == 2 -> 0xFFFFEB3B.toInt() // yellow – "B"
-        scaleIndex == 1 -> 0xFFFF9800.toInt() // orange
-        else -> 0xFFF44336.toInt()             // red
+    fun descriptiveScaleColor(scaleIndex: Int?): Int = when (scaleIndex) {
+        null -> 0
+        3 -> 0xFF00BCD4.toInt()   // blue (cyan)
+        2 -> 0xFFFFEB3B.toInt()   // yellow
+        1 -> 0xFFF44336.toInt()   // red
+        else -> if (scaleIndex > 3) 0xFF00BCD4.toInt() else 0xFFF44336.toInt()
     }
 
     /** Letter at the start of a teacher's comment ("A praca samodzielna" → "A"). */
