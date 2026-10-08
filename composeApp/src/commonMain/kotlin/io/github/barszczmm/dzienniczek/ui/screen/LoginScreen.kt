@@ -99,7 +99,7 @@ fun LoginScreen(
             Spacer(Modifier.height(32.dp))
 
             var selectedTab by remember { mutableIntStateOf(0) }
-            val tabTitles = listOf("eduVulcan", "Token", "Librus")
+            val tabTitles = listOf("eduVulcan", "Librus")
 
             SingleChoiceSegmentedButtonRow(
                 modifier = Modifier.fillMaxWidth()
@@ -132,11 +132,7 @@ fun LoginScreen(
                     isLoading = isLoading,
                     onLogin = { login, password -> viewModel.loginWithEduVulcan(login, password) }
                 )
-                1 -> DzienniczekLoginTab(
-                    isLoading = isLoading,
-                    onLogin = { token, pin, symbol -> viewModel.loginWithToken(token, pin, symbol) }
-                )
-                2 -> LibrusLoginTab(
+                1 -> LibrusLoginTab(
                     isLoading = isLoading,
                     onLogin = { email, password -> viewModel.loginWithLibrus(email, password) }
                 )
@@ -204,84 +200,6 @@ private fun EduVulcanLoginTab(
             } else {
                 Text(
                     text = "Zaloguj się",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DzienniczekLoginTab(
-    isLoading: Boolean,
-    onLogin: (String, String, String) -> Unit
-) {
-    var token by remember { mutableStateOf("") }
-    var pin by remember { mutableStateOf("") }
-    var symbol by remember { mutableStateOf("") }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = symbol,
-            onValueChange = { symbol = it },
-            label = { Text("Symbol szkoły") },
-            singleLine = true,
-            shape = inputShape,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(inputShape)
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = token,
-            onValueChange = { token = it },
-            label = { Text("Token") },
-            singleLine = true,
-            shape = inputShape,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(inputShape)
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = pin,
-            onValueChange = { pin = it },
-            label = { Text("PIN") },
-            singleLine = true,
-            shape = inputShape,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.NumberPassword,
-                imeAction = ImeAction.Done
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(inputShape)
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Token i PIN znajdziesz w zakładce Dostęp mobilny w module Uczeń.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = { onLogin(token, pin, symbol) },
-            enabled = !isLoading && token.isNotBlank() && pin.isNotBlank() && symbol.isNotBlank(),
-            shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth().height(52.dp)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(
-                    text = "Zarejestruj urządzenie",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )

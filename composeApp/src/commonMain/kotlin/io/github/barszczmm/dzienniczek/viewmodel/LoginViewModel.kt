@@ -2,7 +2,6 @@ package io.github.barszczmm.dzienniczek.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import io.github.barszczmm.dzienniczek.api.hebe.DzienniczekHebeApi
 import io.github.barszczmm.dzienniczek.api.hebe.DzienniczekHebeCeApi
 import io.github.barszczmm.dzienniczek.api.hebe.credentials.RsaCredential
 import io.github.barszczmm.dzienniczek.api.hebe.models.Account
@@ -108,38 +107,6 @@ class LoginViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _events.send(LoginEvent.Error(e.message ?: "Błąd logowania"))
-            } finally {
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun loginWithToken(token: String, pin: String, symbol: String) {
-        if (token.isBlank() || pin.isBlank() || symbol.isBlank()) {
-            viewModelScope.launch {
-                _events.send(LoginEvent.Error("Token, PIN i symbol nie mogą być puste"))
-            }
-            return
-        }
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                val credential = RsaCredential.createNew(
-                    deviceOs = "Android",
-                    deviceModel = "Android"
-                )
-                val api = DzienniczekHebeApi(credential, httpClient)
-                api.registerByToken(
-                    securityToken = token.trim(),
-                    pin = pin.trim(),
-                    tenant = symbol.trim()
-                )
-                val accounts = api.getAccounts()
-                sessionStorage.save("hebe", credential, accounts)
-                sessionStorage.restore(session)
-                _events.send(LoginEvent.Success)
-            } catch (e: Exception) {
-                _events.send(LoginEvent.Error(e.message ?: "Błąd rejestracji"))
             } finally {
                 _isLoading.value = false
             }

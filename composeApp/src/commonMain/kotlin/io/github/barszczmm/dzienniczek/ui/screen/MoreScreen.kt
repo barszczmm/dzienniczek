@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.EmojiEvents
+import androidx.compose.material.icons.outlined.Looks6
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
@@ -48,9 +49,9 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun MoreScreen(onNavigate: (Route) -> Unit) {
     val items = listOf(
+        Triple(Icons.Outlined.Looks6, "Oceny", Route.Grades),
         Triple(Icons.Outlined.EmojiEvents, "Uwagi i osiągnięcia", Route.Notes),
         Triple(Icons.AutoMirrored.Outlined.Announcement, "Ogłoszenia", Route.Announcements),
-        Triple(Icons.AutoMirrored.Outlined.Message, "Wiadomości", Route.Messages),
         Triple(Icons.Outlined.Book, "Zadania domowe", Route.Homework),
         Triple(Icons.Outlined.Person, "Konto i uczniowie", Route.Account)
     )
