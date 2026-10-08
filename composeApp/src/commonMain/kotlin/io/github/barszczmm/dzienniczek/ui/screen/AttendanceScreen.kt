@@ -172,6 +172,7 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
                 }
                 Text(
                     text = "Otwiera frekwencję w eduVulcan w przeglądarce (przycisk „Usprawiedliw”). " +
+                        "Jeśli trzeba było się zalogować i otworzyła się „Tablica”, wybierz „Frekwencja”. " +
                         "Po wysłaniu odśwież tę listę ↻.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
