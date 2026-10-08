@@ -28,7 +28,6 @@ import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Looks6
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -87,7 +86,6 @@ fun DashboardScreen(
 ) {
     val activeStudent by viewModel.activeStudent.collectAsStateWithLifecycle()
     val studentSessions by viewModel.studentSessions.collectAsStateWithLifecycle()
-    val luckyNumber by viewModel.luckyNumber.collectAsStateWithLifecycle()
 
     val currentAccount = viewModel.currentAccount
     val enabledStudents = studentSessions.filter { it.isEnabled }
@@ -242,35 +240,6 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
-                    luckyNumber?.let {
-                        if (it.number != 0) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Star,
-                                        contentDescription = "Szczęśliwy numerek",
-                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = "${it.number}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     val initials = currentAccount?.let {
                         "${it.pupil.firstName.firstOrNull() ?: ""}${it.pupil.surname.firstOrNull() ?: ""}"
                     } ?: "?"
@@ -335,7 +304,7 @@ fun DashboardScreen(
                 fadeIn(tween(300)) togetherWith fadeOut(tween(300))
             },
             entryProvider = entryProvider {
-                entry<Route.Start> { StartScreen(luckyNumber = luckyNumber, onNavigate = { backStack.add(it) }) }
+                entry<Route.Start> { StartScreen(onNavigate = { backStack.add(it) }) }
                 entry<Route.Grades> { GradesScreen() }
                 entry<Route.Timetable> { TimetableScreen() }
                 entry<Route.Exams> { ExamsScreen() }
