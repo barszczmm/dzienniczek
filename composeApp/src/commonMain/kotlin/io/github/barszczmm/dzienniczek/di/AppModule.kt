@@ -1,6 +1,8 @@
 package io.github.barszczmm.dzienniczek.di
 
+import io.github.barszczmm.dzienniczek.notifications.JournalChecker
 import io.github.barszczmm.dzienniczek.notifications.MessageChecker
+import io.github.barszczmm.dzienniczek.notifications.SeenItems
 import io.github.barszczmm.dzienniczek.platform.createHttpClient
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.session.SessionStorage
@@ -32,7 +34,9 @@ val appModule = module {
     single { createHttpClient() }
     single { createSessionDataStore() }
     single { SessionStorage(get(), get()) }
+    single { SeenItems(get()) }
     single { MessageChecker(get(), get()) }
+    single { JournalChecker(get(), get()) }
     single { AppSettings(get()) }
     single { AttendanceRepository(get()) }
 

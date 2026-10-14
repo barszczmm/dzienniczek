@@ -10,12 +10,15 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.github.barszczmm.dzienniczek.di.initKoin
 import io.github.barszczmm.dzienniczek.settings.AppSettings
+import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
+import kotlinx.coroutines.flow.first
 import org.koin.mp.KoinPlatform
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 
 /**
- * Checks Librus / eduVulcan for new messages and posts them as notifications.
+ * Checks Librus / eduVulcan for new messages and the other kinds chosen in the settings
+ * (grades, exams, …) and posts them as notifications.
  *
  * Instead of a fixed periodic job, each run schedules the next one after a random
  * delay (about 30 minutes), so requests don't hit the servers at a regular rhythm.
@@ -30,12 +33,16 @@ class MessageCheckWorker(
         initKoin()
         val koin = KoinPlatform.getKoin()
         val isScheduledRun = tags.contains(TAG_SCHEDULED)
-        val pollingEnabled = koin.get<AppSettings>().isMessagePollingEnabled()
+        val settings = koin.get<AppSettings>()
+        val pollingEnabled = settings.isMessagePollingEnabled()
         if (isScheduledRun && !pollingEnabled) return Result.success()
 
         try {
-            val newMessages = koin.get<MessageChecker>().check()
-            newMessages.forEach { MessageNotifier.show(applicationContext, it) }
+            val checks = settings.backgroundChecks.first()
+            if (BackgroundCheck.MESSAGES in checks) {
+                koin.get<MessageChecker>().check().forEach { MessageNotifier.show(applicationContext, it) }
+            }
+            koin.get<JournalChecker>().check(checks).forEach { MessageNotifier.show(applicationContext, it) }
         } finally {
             // This run is still active, so the next one is appended after it.
             if (isScheduledRun && pollingEnabled) scheduleNext(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)

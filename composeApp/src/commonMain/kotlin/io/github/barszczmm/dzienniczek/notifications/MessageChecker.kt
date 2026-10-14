@@ -1,9 +1,5 @@
 package io.github.barszczmm.dzienniczek.notifications
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import io.github.barszczmm.dzienniczek.api.librus.LibrusTokenRefresher
 import io.github.barszczmm.dzienniczek.api.librus.DzienniczekLibrusApi
 import io.github.barszczmm.dzienniczek.api.prometheus.PrometheusMessagesApi
@@ -13,12 +9,8 @@ import io.github.barszczmm.dzienniczek.viewmodel.MessageTab
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.cookies.HttpCookies
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.Json
 
 /** A message that was not seen in any previous check. [body] may contain HTML when [isHtml] is true. */
 data class NewMessage(
@@ -42,11 +34,9 @@ data class NewMessage(
  * user does not get a flood of notifications for old messages.
  */
 class MessageChecker(
-    private val dataStore: DataStore<Preferences>,
+    private val seenItems: SeenItems,
     private val sessionStorage: SessionStorage
 ) {
-    private val json = Json { ignoreUnknownKeys = true }
-    private val idListSerializer = ListSerializer(String.serializer())
     private val mutex = Mutex()
 
     suspend fun check(): List<NewMessage> = mutex.withLock {
@@ -215,29 +205,10 @@ class MessageChecker(
         }
     }
 
-    // ------------------------------------------------------------ seen state
-
-    /**
-     * Returns ids from [currentIds] that were not stored for [sourceKey] before and stores
-     * the current list. Returns an empty set the first time a source is seen.
-     */
-    private suspend fun diffAndRemember(sourceKey: String, currentIds: List<String>): Set<String> {
-        val prefKey = stringPreferencesKey("notif_seen_$sourceKey")
-        val previous: List<String>? = dataStore.data.first()[prefKey]?.let {
-            runCatching { json.decodeFromString(idListSerializer, it) }.getOrNull()
-        }
-        // Keep old ids too, so a message that drops off the first page is not reported again.
-        val merged = (currentIds + (previous ?: emptyList())).distinct().take(MAX_REMEMBERED_IDS)
-        dataStore.edit { it[prefKey] = json.encodeToString(idListSerializer, merged) }
-
-        if (previous == null) return emptySet()
-        val previousSet = previous.toSet()
-        return currentIds.filterNot { it in previousSet }.toSet()
-    }
+    private suspend fun diffAndRemember(sourceKey: String, currentIds: List<String>): Set<String> =
+        seenItems.diffAndRemember(sourceKey, currentIds)
 
     private companion object {
-        const val MAX_REMEMBERED_IDS = 500
-
         /** Kept for the lifetime of the process so we don't log in to eduVulcan on every check. */
         val prometheusCache = mutableMapOf<String, PrometheusMessagesApi>()
     }

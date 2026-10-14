@@ -7,6 +7,7 @@ import io.github.barszczmm.dzienniczek.notifications.triggerMessageCheckNow
 import io.github.barszczmm.dzienniczek.platform.shareText
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.settings.AppSettings
+import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -100,6 +101,13 @@ class SettingsViewModel(
             settings.setMessagePolling(enabled)
             setBackgroundMessageChecks(enabled)
         }
+    }
+
+    val backgroundChecks: StateFlow<Set<BackgroundCheck>> = settings.backgroundChecks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BackgroundCheck.DEFAULT)
+
+    fun setBackgroundCheck(check: BackgroundCheck, enabled: Boolean) {
+        viewModelScope.launch { settings.setBackgroundCheck(check, enabled) }
     }
 
     fun checkNow() = triggerMessageCheckNow()

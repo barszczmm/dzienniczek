@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,9 +26,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.barszczmm.dzienniczek.notifications.rememberNotificationPermissionRequest
+import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import io.github.barszczmm.dzienniczek.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -35,6 +39,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = koinViewModel()
 ) {
     val polling by viewModel.messagePolling.collectAsStateWithLifecycle()
+    val checks by viewModel.backgroundChecks.collectAsStateWithLifecycle()
     val diagnosticsRunning by viewModel.diagnosticsRunning.collectAsStateWithLifecycle()
     val requestNotificationPermission = rememberNotificationPermissionRequest()
 
@@ -45,7 +50,7 @@ fun SettingsScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "Wiadomości",
+            text = "Sprawdzanie w tle",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -60,14 +65,14 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
-                            text = "Sprawdzaj nowe wiadomości w tle",
+                            text = "Sprawdzaj nowości w tle",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "Mniej więcej co 30 minut (losowo 25–40 min) aplikacja sprawdza " +
-                                "skrzynki wszystkich kont i pokazuje powiadomienie z pełną treścią " +
-                                "nowej wiadomości.",
+                                "wszystkie konta i pokazuje powiadomienie o nowych wpisach z zaznaczonych " +
+                                "poniżej kategorii. Wiadomości – z pełną treścią.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -81,6 +86,37 @@ fun SettingsScreen(
                     )
                 }
 
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Co sprawdzać",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                BackgroundCheck.entries.forEach { check ->
+                    val checked = check in checks
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .toggleable(
+                                value = checked,
+                                role = Role.Checkbox,
+                                onValueChange = { viewModel.setBackgroundCheck(check, it) }
+                            )
+                    ) {
+                        Checkbox(checked = checked, onCheckedChange = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(check.label, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                Text(
+                    text = "Przy pierwszym sprawdzeniu nowej kategorii aplikacja tylko zapamiętuje " +
+                        "obecne wpisy – powiadomienia pojawią się dla kolejnych.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
                 Spacer(Modifier.height(12.dp))
 
                 OutlinedButton(
@@ -92,7 +128,7 @@ fun SettingsScreen(
                 ) {
                     Icon(imageVector = Icons.Outlined.Refresh, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Sprawdź nowe wiadomości teraz")
+                    Text("Sprawdź teraz")
                 }
             }
         }

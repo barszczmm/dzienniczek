@@ -14,29 +14,64 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.github.barszczmm.dzienniczek.MainActivity
 import io.github.barszczmm.dzienniczek.R
+import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 
 object MessageNotifier {
     private const val CHANNEL_ID = "messages"
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Nowe wiadomości",
-            NotificationManager.IMPORTANCE_DEFAULT
-        ).apply {
-            description = "Pełna treść nowych wiadomości z Librusa i eduVulcan"
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "Nowe wiadomości", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Pełna treść nowych wiadomości z Librusa i eduVulcan"
+            }
+        )
+        // One channel per kind, so each can be muted separately in the system settings.
+        BackgroundCheck.entries.filter { it != BackgroundCheck.MESSAGES }.forEach { check ->
+            manager.createNotificationChannel(
+                NotificationChannel(channelId(check), check.label, NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "Nowe wpisy w dzienniku: ${check.label.lowercase()}"
+                }
+            )
         }
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    private fun channelId(check: BackgroundCheck): String = "journal_${check.name.lowercase()}"
+
+    private fun canNotify(context: Context): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun openAppIntent(context: Context): PendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    /** New grade, exam, homework, note, announcement or attendance entry. */
+    fun show(context: Context, update: JournalUpdate) {
+        if (!canNotify(context)) return
+        createChannel(context)
+
+        val text = toPlainText(update.text, isHtml = false)
+        val notification = NotificationCompat.Builder(context, channelId(update.check))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(update.title)
+            .setContentText(text.lineSequence().firstOrNull { it.isNotBlank() } ?: "")
+            .setSubText(update.studentName)
+            .setStyle(NotificationCompat.BigTextStyle().setBigContentTitle(update.title).bigText(text))
+            .setContentIntent(openAppIntent(context))
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(update.key.hashCode(), notification)
     }
 
     fun show(context: Context, message: NewMessage) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+        if (!canNotify(context)) return
         createChannel(context)
 
         val body = toPlainText(message.body, message.isHtml)
@@ -44,13 +79,6 @@ object MessageNotifier {
             append(message.source)
             message.studentName?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
         }
-
-        val openApp = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -62,7 +90,7 @@ object MessageNotifier {
                     .setBigContentTitle(message.subject.ifBlank { "(bez tematu)" })
                     .bigText("Od: ${message.sender}\n\n$body")
             )
-            .setContentIntent(openApp)
+            .setContentIntent(openAppIntent(context))
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EMAIL)
             .build()
