@@ -46,32 +46,34 @@ import kotlin.math.round
 fun GradesScreen(viewModel: GradesViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    when {
-        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        state.error != null -> ErrorScreen(
-            message = state.error!!,
-            onRetry = { viewModel.load() }
-        )
-        state.grades.isEmpty() -> EmptyScreen("Brak ocen w bieżącym okresie")
-        else -> {
-            val bySubjectList = state.grades.groupBy { it.column.subject.name }.toList()
-            val averageMap = state.averages.associate { it.subject.name to it.average }
+    RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.load(refresh = true) }) {
+        when {
+            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            state.error != null -> ErrorScreen(
+                message = state.error!!,
+                onRetry = { viewModel.load() }
+            )
+            state.grades.isEmpty() -> EmptyScreen("Brak ocen w bieżącym okresie")
+            else -> {
+                val bySubjectList = state.grades.groupBy { it.column.subject.name }.toList()
+                val averageMap = state.averages.associate { it.subject.name to it.average }
 
-            LazyColumn(modifier = Modifier.fillMaxSize().padding(vertical = 8.dp)) {
-                itemsIndexed(bySubjectList, key = { _, pair -> pair.first }) { index, (subject, grades) ->
-                    SubjectGradesSection(
-                        subject = subject,
-                        grades = grades,
-                        average = averageMap[subject],
-                        shape = expressiveGroupShape(index = index, count = bySubjectList.size)
-                    )
-                    if (index < bySubjectList.size - 1) {
-                        Spacer(Modifier.height(3.dp))
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(vertical = 8.dp)) {
+                    itemsIndexed(bySubjectList, key = { _, pair -> pair.first }) { index, (subject, grades) ->
+                        SubjectGradesSection(
+                            subject = subject,
+                            grades = grades,
+                            average = averageMap[subject],
+                            shape = expressiveGroupShape(index = index, count = bySubjectList.size)
+                        )
+                        if (index < bySubjectList.size - 1) {
+                            Spacer(Modifier.height(3.dp))
+                        }
                     }
+                    item { Spacer(Modifier.height(16.dp)) }
                 }
-                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }

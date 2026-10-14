@@ -21,6 +21,8 @@ import kotlin.time.Clock
 
 data class StartState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val firstName: String = "",
     val recentGrades: List<Grade> = emptyList(),
     val upcomingExams: List<Exam> = emptyList(),
@@ -46,7 +48,11 @@ class StartViewModel(
         }
     }
 
-    private fun loadSummary() {
+    fun refresh() {
+        loadSummary(refresh = true)
+    }
+
+    private fun loadSummary(refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -62,7 +68,7 @@ class StartViewModel(
         val oneWeekAhead = dateToday.plus(7, DateTimeUnit.DAY)
 
         viewModelScope.launch {
-            _state.value = StartState(isLoading = true)
+            _state.value = if (refresh) _state.value.copy(isRefreshing = true) else StartState(isLoading = true)
             try {
                 // Fetch grades
                 val grades = api.getGrades(
@@ -96,9 +102,10 @@ class StartViewModel(
                     firstName = account.pupil.firstName,
                     recentGrades = recentGrades,
                     upcomingExams = exams,
-                    upcomingHomework = homework
+                    upcomingHomework = homework,
+                    unexcusedAbsences = _state.value.unexcusedAbsences
                 )
-                loadAttendanceSummary()
+                loadAttendanceSummary(forceRefresh = refresh)
             } catch (e: Exception) {
                 _state.value = StartState(
                     isLoading = false,
@@ -109,9 +116,9 @@ class StartViewModel(
     }
 
     /** Loaded after the rest, so a slow attendance download doesn't delay the start screen. */
-    private fun loadAttendanceSummary() {
+    private fun loadAttendanceSummary(forceRefresh: Boolean) {
         viewModelScope.launch {
-            runCatching { attendanceRepository.get() }.onSuccess { entries ->
+            runCatching { attendanceRepository.get(forceRefresh) }.onSuccess { entries ->
                 _state.value = _state.value.copy(
                     unexcusedAbsences = entries.count { it.kind == AttendanceKind.ABSENT }
                 )

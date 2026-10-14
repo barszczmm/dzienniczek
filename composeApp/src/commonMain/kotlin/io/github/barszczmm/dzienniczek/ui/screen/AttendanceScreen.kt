@@ -128,91 +128,96 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
         )
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        item {
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                val options = listOf(1 to "Okres 1", 2 to "Okres 2", 0 to "Cały rok")
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
-                    options.forEachIndexed { index, (value, title) ->
-                        SegmentedButton(
-                            selected = state.semester == value,
-                            onClick = { viewModel.setSemester(value) },
-                            shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                            icon = {},
-                            label = { Text(title, maxLines = 1, softWrap = false) }
-                        )
-                    }
-                }
-                IconButton(onClick = { viewModel.load(forceRefresh = true) }, enabled = !state.isLoading) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Odśwież")
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                SummaryTile(state.unexcused, "nieuspraw.", ColorAbsent, state.filter == AttendanceFilter.UNEXCUSED, Modifier.weight(1f)) {
-                    viewModel.setFilter(AttendanceFilter.UNEXCUSED)
-                }
-                SummaryTile(state.excused, "uspraw.", ColorExcused, state.filter == AttendanceFilter.EXCUSED, Modifier.weight(1f)) {
-                    viewModel.setFilter(AttendanceFilter.EXCUSED)
-                }
-                SummaryTile(state.late, "spóźnienia", ColorLate, state.filter == AttendanceFilter.LATE, Modifier.weight(1f)) {
-                    viewModel.setFilter(AttendanceFilter.LATE)
-                }
-            }
-            if (viewModel.justifyUrl != null && state.toJustify > 0) {
+    RefreshableContent(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { viewModel.load(forceRefresh = true, pulled = true) }
+    ) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+            item {
                 Spacer(Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { viewModel.openJustification() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Usprawiedliw w eduVulcan")
-                }
-                Text(
-                    text = "Otwiera frekwencję w eduVulcan w przeglądarce (przycisk „Usprawiedliw”). " +
-                        "Po wysłaniu odśwież tę listę ↻.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-
-        when {
-            state.isLoading && state.all.isEmpty() -> item {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-            state.error != null -> item { ErrorScreen(state.error!!, onRetry = { viewModel.load() }) }
-            state.visible.isEmpty() -> item {
-                Text(
-                    text = if (state.filter == AttendanceFilter.ALL) "Brak nieobecności i spóźnień 🎉" else "Brak wpisów tego rodzaju",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth()
-                )
-            }
-            else -> {
-                state.visible.groupBy { it.date }.forEach { (date, entries) ->
-                    item(key = "d$date") {
-                        Text(
-                            text = date.label().uppercase(),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
-                        )
-                    }
-                    entries.groupBy { it.kind }.forEach { (kind, group) ->
-                        item(key = "d$date-$kind") {
-                            DayKindCard(kind, group, onClick = { details = it })
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val options = listOf(1 to "Okres 1", 2 to "Okres 2", 0 to "Cały rok")
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                        options.forEachIndexed { index, (value, title) ->
+                            SegmentedButton(
+                                selected = state.semester == value,
+                                onClick = { viewModel.setSemester(value) },
+                                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                                icon = {},
+                                label = { Text(title, maxLines = 1, softWrap = false) }
+                            )
                         }
                     }
+                    IconButton(onClick = { viewModel.load(forceRefresh = true) }, enabled = !state.isLoading) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Odśwież")
+                    }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    SummaryTile(state.unexcused, "nieuspraw.", ColorAbsent, state.filter == AttendanceFilter.UNEXCUSED, Modifier.weight(1f)) {
+                        viewModel.setFilter(AttendanceFilter.UNEXCUSED)
+                    }
+                    SummaryTile(state.excused, "uspraw.", ColorExcused, state.filter == AttendanceFilter.EXCUSED, Modifier.weight(1f)) {
+                        viewModel.setFilter(AttendanceFilter.EXCUSED)
+                    }
+                    SummaryTile(state.late, "spóźnienia", ColorLate, state.filter == AttendanceFilter.LATE, Modifier.weight(1f)) {
+                        viewModel.setFilter(AttendanceFilter.LATE)
+                    }
+                }
+                if (viewModel.justifyUrl != null && state.toJustify > 0) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = { viewModel.openJustification() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Usprawiedliw w eduVulcan")
+                    }
+                    Text(
+                        text = "Otwiera frekwencję w eduVulcan w przeglądarce (przycisk „Usprawiedliw”). " +
+                            "Po wysłaniu odśwież tę listę ↻.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+
+            when {
+                state.isLoading && state.all.isEmpty() -> item {
+                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                state.error != null -> item { ErrorScreen(state.error!!, onRetry = { viewModel.load() }) }
+                state.visible.isEmpty() -> item {
+                    Text(
+                        text = if (state.filter == AttendanceFilter.ALL) "Brak nieobecności i spóźnień 🎉" else "Brak wpisów tego rodzaju",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth()
+                    )
+                }
+                else -> {
+                    state.visible.groupBy { it.date }.forEach { (date, entries) ->
+                        item(key = "d$date") {
+                            Text(
+                                text = date.label().uppercase(),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 16.dp, bottom = 6.dp)
+                            )
+                        }
+                        entries.groupBy { it.kind }.forEach { (kind, group) ->
+                            item(key = "d$date-$kind") {
+                                DayKindCard(kind, group, onClick = { details = it })
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
+                }
             }
         }
     }

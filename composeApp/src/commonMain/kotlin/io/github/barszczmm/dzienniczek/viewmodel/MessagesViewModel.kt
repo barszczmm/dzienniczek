@@ -20,6 +20,8 @@ enum class MessageTab {
 
 data class MessagesState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val messages: List<UiMessage> = emptyList(),
     val error: String? = null,
     val currentTab: MessageTab = MessageTab.RECEIVED
@@ -47,7 +49,7 @@ class MessagesViewModel(
         }
     }
 
-    fun loadMessages() {
+    fun loadMessages(refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -58,7 +60,11 @@ class MessagesViewModel(
         val currentTab = _state.value.currentTab
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
+            _state.value = if (refresh) {
+                _state.value.copy(isRefreshing = true)
+            } else {
+                _state.value.copy(isLoading = true, error = null)
+            }
             try {
                 if (account.unit.restUrl == "librus" || session.librusApi != null) {
                     val librusApi = session.librusApi
@@ -67,7 +73,7 @@ class MessagesViewModel(
                         // Synergia web inbox: complete list with sender and date (the mobile API
                         // returns only part of the messages and needs a paid add-on).
                         val uiMessages = librusApi.getSynergiaMessages(currentTab)
-                        _state.value = _state.value.copy(isLoading = false, messages = uiMessages)
+                        _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                         return@launch
                     }
                 }
@@ -111,7 +117,7 @@ class MessagesViewModel(
                             hasAttachments = pMsg.hasZalaczniki
                         )
                     }
-                    _state.value = _state.value.copy(isLoading = false, messages = uiMessages)
+                    _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                 } else {
                     // Use Hebe API
                     val box = account.messageBox?.globalKey ?: ""
@@ -136,11 +142,11 @@ class MessagesViewModel(
                             content = hMsg.content
                         )
                     }
-                    _state.value = _state.value.copy(isLoading = false, messages = uiMessages)
+                    _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _state.value = _state.value.copy(isLoading = false, error = e.message ?: "Wystąpił błąd podczas pobierania wiadomości")
+                _state.value = _state.value.copy(isLoading = false, isRefreshing = false, error = e.message ?: "Wystąpił błąd podczas pobierania wiadomości")
             }
         }
     }

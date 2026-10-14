@@ -43,24 +43,26 @@ private val noteNeutralOnContainerDark = Color(0xFFFFD9A8)
 fun NotesScreen(viewModel: NotesViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    when {
-        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
-        state.unavailableInfo != null -> EmptyScreen(state.unavailableInfo!!)
-        state.notes.isEmpty() -> EmptyScreen("Brak uwag")
-        else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
-            itemsIndexed(state.notes, key = { _, note -> note.id }) { index, note ->
-                NoteCard(
-                    note = note,
-                    shape = expressiveGroupShape(index = index, count = state.notes.size)
-                )
-                if (index < state.notes.size - 1) {
-                    Spacer(Modifier.height(3.dp))
-                }
+    RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.load(refresh = true) }) {
+        when {
+            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            item { Spacer(Modifier.height(16.dp)) }
+            state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
+            state.unavailableInfo != null -> EmptyScreen(state.unavailableInfo!!)
+            state.notes.isEmpty() -> EmptyScreen("Brak uwag")
+            else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+                itemsIndexed(state.notes, key = { _, note -> note.id }) { index, note ->
+                    NoteCard(
+                        note = note,
+                        shape = expressiveGroupShape(index = index, count = state.notes.size)
+                    )
+                    if (index < state.notes.size - 1) {
+                        Spacer(Modifier.height(3.dp))
+                    }
+                }
+                item { Spacer(Modifier.height(16.dp)) }
+            }
         }
     }
 }

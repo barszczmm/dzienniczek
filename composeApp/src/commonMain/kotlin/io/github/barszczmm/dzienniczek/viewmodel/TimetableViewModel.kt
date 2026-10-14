@@ -36,6 +36,8 @@ fun mondayOfWeek(date: LocalDate): LocalDate {
 
 data class TimetableState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val schedule: List<Schedule> = emptyList(),
     val selectedDate: LocalDate = initialSelectedDate(),
     val error: String? = null
@@ -102,7 +104,11 @@ class TimetableViewModel(
         selectDate(newDate)
     }
 
-    private fun loadWeek(weekStart: LocalDate) {
+    fun refresh() {
+        loadWeek(mondayOfWeek(_state.value.selectedDate), refresh = true)
+    }
+
+    private fun loadWeek(weekStart: LocalDate, refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -113,7 +119,7 @@ class TimetableViewModel(
         val weekEnd = weekStart.plus(6, DateTimeUnit.DAY)
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = if (refresh) _state.value.copy(isRefreshing = true) else _state.value.copy(isLoading = true)
             try {
                 val schedule = api.getSchedule(
                     restUrl = account.unit.restUrl,
@@ -123,6 +129,7 @@ class TimetableViewModel(
                 )
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     schedule = schedule.sortedWith(
                         compareBy({ it.effectiveDate }, { it.effectivePosition })
                     ),
@@ -131,6 +138,7 @@ class TimetableViewModel(
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     error = e.message ?: "Błąd ładowania planu"
                 )
             }

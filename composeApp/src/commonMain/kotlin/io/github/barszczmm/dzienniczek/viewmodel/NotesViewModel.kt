@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 
 data class NotesState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val notes: List<Note> = emptyList(),
     val error: String? = null,
     /** Set when the school does not publish notes, shown as an info instead of an error. */
@@ -33,7 +35,7 @@ class NotesViewModel(
         }
     }
 
-    fun load() {
+    fun load(refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -42,7 +44,7 @@ class NotesViewModel(
         }
 
         viewModelScope.launch {
-            _state.value = NotesState(isLoading = true)
+            _state.value = if (refresh) _state.value.copy(isRefreshing = true) else NotesState(isLoading = true)
             try {
                 val notes = api.getNotes(
                     restUrl = account.unit.restUrl,

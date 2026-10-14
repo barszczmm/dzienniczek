@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 
 data class GradesState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val grades: List<Grade> = emptyList(),
     val averages: List<GradeAverage> = emptyList(),
     val error: String? = null
@@ -32,7 +34,7 @@ class GradesViewModel(
         }
     }
 
-    fun load() {
+    fun load(refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -43,7 +45,7 @@ class GradesViewModel(
         val period = account.periods?.firstOrNull { it.current == true } ?: account.periods?.lastOrNull() ?: return
 
         viewModelScope.launch {
-            _state.value = GradesState(isLoading = true)
+            _state.value = if (refresh) _state.value.copy(isRefreshing = true) else GradesState(isLoading = true)
             try {
                 val grades = api.getGrades(
                     restUrl = account.unit.restUrl,

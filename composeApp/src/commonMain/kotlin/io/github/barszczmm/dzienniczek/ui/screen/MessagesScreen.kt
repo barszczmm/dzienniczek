@@ -81,7 +81,7 @@ fun MessagesScreen(onNavigate: (Route) -> Unit, viewModel: MessagesViewModel = k
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.loadMessages(refresh = true) }) {
             when {
                 state.isLoading -> {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))

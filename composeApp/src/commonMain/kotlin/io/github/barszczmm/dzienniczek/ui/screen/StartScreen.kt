@@ -55,175 +55,177 @@ fun StartScreen(
         return
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+    RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.refresh() }) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(16.dp)) }
 
-        if (state.firstName.isNotBlank()) {
-            item {
-                Text(
-                    text = "Cześć, ${state.firstName}!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            if (state.firstName.isNotBlank()) {
+                item {
+                    Text(
+                        text = "Cześć, ${state.firstName}!",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
             }
-        }
 
 
-        if (state.unexcusedAbsences > 0) {
+            if (state.unexcusedAbsences > 0) {
+                item {
+                    ElevatedCard(
+                        onClick = { onNavigate(Route.Attendance) },
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Icon(imageVector = Icons.Outlined.EventBusy, contentDescription = null)
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = unexcusedLabel(state.unexcusedAbsences),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "w tym roku szkolnym – dotknij, aby zobaczyć",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 ElevatedCard(
-                    onClick = { onNavigate(Route.Attendance) },
+                    onClick = { onNavigate(Route.Grades) },
                     colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                     ),
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Icon(imageVector = Icons.Outlined.EventBusy, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Column {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Looks6,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Text(
-                                text = unexcusedLabel(state.unexcusedAbsences),
-                                style = MaterialTheme.typography.titleMedium,
+                                text = "Ostatnie oceny",
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.SemiBold
                             )
+                        }
+                        if (state.recentGrades.isNotEmpty()) {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                state.recentGrades.forEach { grade ->
+                                    GradeChip(grade)
+                                }
+                            }
+                        } else {
+                            EmptinessText("Brak nowych ocen z ostatnich 7 dni.")
+                        }
+                    }
+                }
+            }
+
+            item {
+                ElevatedCard(
+                    onClick = { onNavigate(Route.Exams) },
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.CalendarToday,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(12.dp))
                             Text(
-                                text = "w tym roku szkolnym – dotknij, aby zobaczyć",
-                                style = MaterialTheme.typography.bodySmall
+                                text = "Najbliższe sprawdziany",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
-                    }
-                }
-            }
-        }
-
-        item {
-            ElevatedCard(
-                onClick = { onNavigate(Route.Grades) },
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.Looks6,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Ostatnie oceny",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (state.recentGrades.isNotEmpty()) {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            state.recentGrades.forEach { grade ->
-                                GradeChip(grade)
-                            }
-                        }
-                    } else {
-                        EmptinessText("Brak nowych ocen z ostatnich 7 dni.")
-                    }
-                }
-            }
-        }
-
-        item {
-            ElevatedCard(
-                onClick = { onNavigate(Route.Exams) },
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.CalendarToday,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Najbliższe sprawdziany",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (state.upcomingExams.isNotEmpty()) {
-                        Column {
-                            state.upcomingExams.forEachIndexed { index, exam ->
-                                ExamCard(
-                                    exam = exam,
-                                    shape = expressiveGroupShape(index = index, count = state.upcomingExams.size),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                )
-                                if (index < state.upcomingExams.size - 1) {
-                                    Spacer(Modifier.height(3.dp))
+                        if (state.upcomingExams.isNotEmpty()) {
+                            Column {
+                                state.upcomingExams.forEachIndexed { index, exam ->
+                                    ExamCard(
+                                        exam = exam,
+                                        shape = expressiveGroupShape(index = index, count = state.upcomingExams.size),
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    )
+                                    if (index < state.upcomingExams.size - 1) {
+                                        Spacer(Modifier.height(3.dp))
+                                    }
                                 }
                             }
+                        } else {
+                            EmptinessText("Brak sprawdzianów zapowiedzianych na nadchodzący tydzień.")
                         }
-                    } else {
-                        EmptinessText("Brak sprawdzianów zapowiedzianych na nadchodzący tydzień.")
                     }
                 }
             }
-        }
 
-        item {
-            ElevatedCard(
-                onClick = { onNavigate(Route.Homework) },
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                ),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.Book,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Nadchodzące zadania domowe",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (state.upcomingHomework.isNotEmpty()) {
-                        Column {
-                            state.upcomingHomework.forEachIndexed { index, hw ->
-                                HomeworkCard(
-                                    hw = hw,
-                                    shape = expressiveGroupShape(index = index, count = state.upcomingHomework.size),
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                                )
-                                if (index < state.upcomingHomework.size - 1) {
-                                    Spacer(Modifier.height(3.dp))
+            item {
+                ElevatedCard(
+                    onClick = { onNavigate(Route.Homework) },
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    ),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Book,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = "Nadchodzące zadania domowe",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        if (state.upcomingHomework.isNotEmpty()) {
+                            Column {
+                                state.upcomingHomework.forEachIndexed { index, hw ->
+                                    HomeworkCard(
+                                        hw = hw,
+                                        shape = expressiveGroupShape(index = index, count = state.upcomingHomework.size),
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                                    )
+                                    if (index < state.upcomingHomework.size - 1) {
+                                        Spacer(Modifier.height(3.dp))
+                                    }
                                 }
                             }
+                        } else {
+                            EmptinessText("Brak zadań domowych z terminem na najbliższe 7 dni.")
                         }
-                    } else {
-                        EmptinessText("Brak zadań domowych z terminem na najbliższe 7 dni.")
                     }
                 }
             }

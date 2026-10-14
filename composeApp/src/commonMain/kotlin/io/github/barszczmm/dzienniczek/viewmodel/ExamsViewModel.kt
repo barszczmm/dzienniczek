@@ -19,6 +19,8 @@ import kotlin.time.Clock
 
 data class ExamsState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val exams: List<Exam> = emptyList(),
     val weekStart: LocalDate = mondayOfCurrentWeekExams(),
     val error: String? = null
@@ -55,11 +57,11 @@ class ExamsViewModel(
         loadWeek(newStart)
     }
 
-    fun load() {
-        loadWeek(_state.value.weekStart)
+    fun load(refresh: Boolean = false) {
+        loadWeek(_state.value.weekStart, refresh)
     }
 
-    private fun loadWeek(weekStart: LocalDate) {
+    private fun loadWeek(weekStart: LocalDate, refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -70,7 +72,11 @@ class ExamsViewModel(
         val weekEnd = weekStart.plus(6, DateTimeUnit.DAY)
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, weekStart = weekStart)
+            _state.value = if (refresh) {
+                _state.value.copy(isRefreshing = true)
+            } else {
+                _state.value.copy(isLoading = true, weekStart = weekStart)
+            }
             try {
                 val exams = api.getExams(
                     restUrl = account.unit.restUrl,

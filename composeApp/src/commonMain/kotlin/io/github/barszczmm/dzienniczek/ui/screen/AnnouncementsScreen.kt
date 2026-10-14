@@ -32,23 +32,25 @@ import org.koin.compose.viewmodel.koinViewModel
 fun AnnouncementsScreen(viewModel: AnnouncementsViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    when {
-        state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
-        state.announcements.isEmpty() -> EmptyScreen("Brak ogłoszeń")
-        else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
-            itemsIndexed(state.announcements, key = { _, a -> a.id }) { index, announcement ->
-                AnnouncementCard(
-                    announcement = announcement,
-                    shape = expressiveGroupShape(index = index, count = state.announcements.size)
-                )
-                if (index < state.announcements.size - 1) {
-                    Spacer(Modifier.height(3.dp))
-                }
+    RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.load(refresh = true) }) {
+        when {
+            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
-            item { Spacer(Modifier.height(16.dp)) }
+            state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
+            state.announcements.isEmpty() -> EmptyScreen("Brak ogłoszeń")
+            else -> LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+                itemsIndexed(state.announcements, key = { _, a -> a.id }) { index, announcement ->
+                    AnnouncementCard(
+                        announcement = announcement,
+                        shape = expressiveGroupShape(index = index, count = state.announcements.size)
+                    )
+                    if (index < state.announcements.size - 1) {
+                        Spacer(Modifier.height(3.dp))
+                    }
+                }
+                item { Spacer(Modifier.height(16.dp)) }
+            }
         }
     }
 }

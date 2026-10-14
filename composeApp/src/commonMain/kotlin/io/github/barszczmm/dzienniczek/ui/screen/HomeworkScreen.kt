@@ -80,37 +80,39 @@ fun HomeworkScreen(viewModel: HomeworkViewModel = koinViewModel()) {
             }
         }
 
-        when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
-            state.homework.isEmpty() -> EmptyScreen("Brak zadań w tym tygodniu")
-            else -> {
-                val byDay = state.homework.groupBy { it.deadline }
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
-                    (0..6).forEach { dayOffset ->
-                        val date = state.weekStart.plus(dayOffset, DateTimeUnit.DAY)
-                        val hwForDay = byDay[date] ?: emptyList()
-                        if (hwForDay.isNotEmpty()) {
-                            item {
-                                DayHeader(date)
-                                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                    hwForDay.forEachIndexed { index, hw ->
-                                        HomeworkCard(
-                                            hw = hw,
-                                            shape = expressiveGroupShape(index = index, count = hwForDay.size)
-                                        )
-                                        if (index < hwForDay.size - 1) {
-                                            Spacer(Modifier.height(3.dp))
+        RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.load(refresh = true) }) {
+            when {
+                state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.load() })
+                state.homework.isEmpty() -> EmptyScreen("Brak zadań w tym tygodniu")
+                else -> {
+                    val byDay = state.homework.groupBy { it.deadline }
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+                        (0..6).forEach { dayOffset ->
+                            val date = state.weekStart.plus(dayOffset, DateTimeUnit.DAY)
+                            val hwForDay = byDay[date] ?: emptyList()
+                            if (hwForDay.isNotEmpty()) {
+                                item {
+                                    DayHeader(date)
+                                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        hwForDay.forEachIndexed { index, hw ->
+                                            HomeworkCard(
+                                                hw = hw,
+                                                shape = expressiveGroupShape(index = index, count = hwForDay.size)
+                                            )
+                                            if (index < hwForDay.size - 1) {
+                                                Spacer(Modifier.height(3.dp))
+                                            }
                                         }
                                     }
+                                    Spacer(Modifier.height(12.dp))
                                 }
-                                Spacer(Modifier.height(12.dp))
                             }
                         }
+                        item { Spacer(Modifier.height(16.dp)) }
                     }
-                    item { Spacer(Modifier.height(16.dp)) }
                 }
             }
         }

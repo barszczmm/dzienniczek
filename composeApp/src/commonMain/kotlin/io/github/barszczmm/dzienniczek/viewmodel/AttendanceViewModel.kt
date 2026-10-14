@@ -23,6 +23,8 @@ enum class AttendanceFilter { ALL, UNEXCUSED, EXCUSED, LATE }
 
 data class AttendanceState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val error: String? = null,
     val all: List<AttendanceEntry> = emptyList(),
     /** 0 = whole year, 1 / 2 = school term. */
@@ -64,23 +66,25 @@ class AttendanceViewModel(
         }
     }
 
-    fun load(forceRefresh: Boolean = true) {
+    fun load(forceRefresh: Boolean = true, pulled: Boolean = false) {
         val account = session.currentAccount
         viewModelScope.launch {
             val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
             val currentSemester = account?.semesterOf(today) ?: 1
             _state.value = _state.value.copy(
-                isLoading = true,
+                isLoading = !pulled,
+                isRefreshing = pulled,
                 error = null,
                 semester = if (_state.value.all.isEmpty()) currentSemester else _state.value.semester
             )
             try {
                 val entries = repository.get(forceRefresh)
-                _state.value = _state.value.copy(isLoading = false, all = entries)
+                _state.value = _state.value.copy(isLoading = false, isRefreshing = false, all = entries)
             } catch (e: Exception) {
                 e.printStackTrace()
                 _state.value = _state.value.copy(
                     isLoading = false,
+                    isRefreshing = false,
                     error = e.message ?: "Błąd ładowania frekwencji"
                 )
             }

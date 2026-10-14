@@ -131,29 +131,31 @@ fun TimetableScreen(viewModel: TimetableViewModel = koinViewModel()) {
             }
         }
 
-        when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.selectDate(selectedDate) })
-            state.dayLessons.isEmpty() -> EmptyScreen("Brak lekcji w tym dniu")
-            else -> {
-                val dayLessons = state.dayLessons
-                LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 12.dp)) {
-                    item {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                            dayLessons.forEachIndexed { index, lesson ->
-                                LessonCard(
-                                    lesson = lesson,
-                                    shape = expressiveGroupShape(index = index, count = dayLessons.size)
-                                )
-                                if (index < dayLessons.size - 1) {
-                                    Spacer(Modifier.height(3.dp))
+        RefreshableContent(isRefreshing = state.isRefreshing, onRefresh = { viewModel.refresh() }) {
+            when {
+                state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                state.error != null -> ErrorScreen(state.error!!, onRetry = { viewModel.selectDate(selectedDate) })
+                state.dayLessons.isEmpty() -> EmptyScreen("Brak lekcji w tym dniu")
+                else -> {
+                    val dayLessons = state.dayLessons
+                    LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 12.dp)) {
+                        item {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                dayLessons.forEachIndexed { index, lesson ->
+                                    LessonCard(
+                                        lesson = lesson,
+                                        shape = expressiveGroupShape(index = index, count = dayLessons.size)
+                                    )
+                                    if (index < dayLessons.size - 1) {
+                                        Spacer(Modifier.height(3.dp))
+                                    }
                                 }
                             }
                         }
+                        item { Spacer(Modifier.height(16.dp)) }
                     }
-                    item { Spacer(Modifier.height(16.dp)) }
                 }
             }
         }

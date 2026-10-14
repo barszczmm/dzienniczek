@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 
 data class AnnouncementsState(
     val isLoading: Boolean = false,
+    /** Pull-to-refresh in progress: the current data stays on screen. */
+    val isRefreshing: Boolean = false,
     val announcements: List<Announcement> = emptyList(),
     val error: String? = null
 )
@@ -31,7 +33,7 @@ class AnnouncementsViewModel(
         }
     }
 
-    fun load() {
+    fun load(refresh: Boolean = false) {
         val account = session.currentAccount
         val api = session.api
         if (account == null || api == null) {
@@ -40,7 +42,7 @@ class AnnouncementsViewModel(
         }
 
         viewModelScope.launch {
-            _state.value = AnnouncementsState(isLoading = true)
+            _state.value = if (refresh) _state.value.copy(isRefreshing = true) else AnnouncementsState(isLoading = true)
             try {
                 val announcements = api.getAnnouncements(
                     restUrl = account.unit.restUrl,
