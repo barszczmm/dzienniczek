@@ -51,14 +51,20 @@ class MessageCheckWorker(
             val checks = settings.backgroundChecks.first()
             // One pacer for the whole run: a few random seconds between all requests.
             val pacer = RequestPacer()
-            if (BackgroundCheck.MESSAGES in checks) {
-                val messages = koin.get<MessageChecker>().check(pacer)
-                messages.forEach { MessageNotifier.show(applicationContext, it) }
-                found += messages.size
+            val checkMessages: suspend () -> Unit = {
+                if (BackgroundCheck.MESSAGES in checks) {
+                    val messages = koin.get<MessageChecker>().check(pacer)
+                    messages.forEach { MessageNotifier.show(applicationContext, it) }
+                    found += messages.size
+                }
             }
-            val updates = koin.get<JournalChecker>().check(checks, pacer)
-            updates.forEach { MessageNotifier.show(applicationContext, it) }
-            found += updates.size
+            val checkJournal: suspend () -> Unit = {
+                val updates = koin.get<JournalChecker>().check(checks, pacer)
+                updates.forEach { MessageNotifier.show(applicationContext, it) }
+                found += updates.size
+            }
+            // Messages and the other kinds in a random order, too.
+            listOf(checkMessages, checkJournal).shuffled().forEach { it() }
         } finally {
             // This run is still active, so the next one is appended after it.
             if (isScheduledRun && pollingEnabled) scheduleNext(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)

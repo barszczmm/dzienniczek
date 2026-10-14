@@ -45,8 +45,10 @@ class MessageChecker(
     suspend fun check(pacer: RequestPacer = RequestPacer()): List<NewMessage> = mutex.withLock {
         this.pacer = pacer
         val result = mutableListOf<NewMessage>()
-        runCatching { checkLibrus(result) }.onFailure { it.printStackTrace() }
-        runCatching { checkVulcan(result) }.onFailure { it.printStackTrace() }
+        // Journals, accounts and mailboxes are walked in a new random order on each check.
+        listOf<suspend () -> Unit>({ checkLibrus(result) }, { checkVulcan(result) })
+            .shuffled()
+            .forEach { step -> runCatching { step() }.onFailure { it.printStackTrace() } }
         result
     }
 
@@ -56,6 +58,7 @@ class MessageChecker(
         val students = sessionStorage.loadStudents()
             .filter { it.isEnabled && it.isLibrus }
             .distinctBy { it.librus!!.synergiaAccount.login }
+            .shuffled()
         if (students.isEmpty()) return
 
         // Dedicated client with a cookie jar: Synergia web pages need the session cookie
@@ -123,6 +126,7 @@ class MessageChecker(
         val webLogins = students
             .filter { it.prometheusLogin != null && it.prometheusPassword != null && it.prometheusTenant != null }
             .distinctBy { "${it.prometheusTenant}|${it.prometheusLogin}" }
+            .shuffled()
 
         for (student in webLogins) {
             pacer.pause()
@@ -140,6 +144,7 @@ class MessageChecker(
         val hebeStudents = students
             .filter { it.prometheusLogin == null }
             .distinctBy { it.account.messageBox?.globalKey ?: it.id }
+            .shuffled()
         for (student in hebeStudents) {
             pacer.pause()
             runCatching {
@@ -190,7 +195,7 @@ class MessageChecker(
             return result
         }
 
-        val mailboxes = withApi { it.getMailboxes() }
+        val mailboxes = withApi { it.getMailboxes() }.shuffled()
         for (mailbox in mailboxes) {
             pacer.pause()
             runCatching {

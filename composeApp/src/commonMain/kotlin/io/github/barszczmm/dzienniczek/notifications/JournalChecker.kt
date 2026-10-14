@@ -43,16 +43,17 @@ class JournalChecker(
 
         val result = mutableListOf<JournalUpdate>()
         val students = sessionStorage.loadStudents().filter { it.isEnabled }
+        // Every student × kind in a new random order on each check, so the requests
+        // don't follow the same pattern every time.
+        val steps = students.flatMap { student -> kinds.map { kind -> student to kind } }.shuffled()
+        for ((student, kind) in steps) {
+            pacer.pause()
+            runCatching { result += checkStudent(student, kind) }.onFailure { it.printStackTrace() }
+        }
+        // Librus refreshes expired tokens on the fly – keep the new ones.
         for (student in students) {
-            for (kind in kinds) {
-                pacer.pause()
-                runCatching { result += checkStudent(student, kind) }.onFailure { it.printStackTrace() }
-            }
-            // Librus refreshes expired tokens on the fly – keep the new ones.
-            val librus = student.librus
-            if (librus != null) {
-                runCatching { sessionStorage.updateLibrusTokens(student.id, librus.portalToken, librus.apiToken) }
-            }
+            val librus = student.librus ?: continue
+            runCatching { sessionStorage.updateLibrusTokens(student.id, librus.portalToken, librus.apiToken) }
         }
         result
     }
