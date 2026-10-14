@@ -2,6 +2,7 @@ package io.github.barszczmm.dzienniczek.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.barszczmm.dzienniczek.notifications.BackgroundSchedule
 import io.github.barszczmm.dzienniczek.notifications.CheckNowState
 import io.github.barszczmm.dzienniczek.notifications.checkNowState
 import io.github.barszczmm.dzienniczek.notifications.setBackgroundMessageChecks
@@ -114,6 +115,23 @@ class SettingsViewModel(
 
     val checkNowState: StateFlow<CheckNowState> = checkNowState()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CheckNowState.Idle)
+
+    val checkHours: StateFlow<IntRange> = settings.checkHours.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        BackgroundSchedule.DEFAULT_START_HOUR..BackgroundSchedule.DEFAULT_END_HOUR
+    )
+
+    /** Keeps start before end: moving one past the other moves the other along. */
+    fun setCheckHours(startHour: Int, endHour: Int) {
+        val start = startHour.coerceIn(0, 23)
+        val end = endHour.coerceIn(start + 1, 24)
+        viewModelScope.launch {
+            settings.setCheckHours(start, end)
+            // Re-plan the waiting check, so it follows the new hours.
+            if (settings.isMessagePollingEnabled()) setBackgroundMessageChecks(true)
+        }
+    }
 
     fun checkNow() = triggerMessageCheckNow()
 }

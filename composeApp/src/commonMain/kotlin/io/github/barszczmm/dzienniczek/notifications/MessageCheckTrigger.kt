@@ -18,4 +18,4 @@ sealed interface CheckNowState {
 expect fun checkNowState(): Flow<CheckNowState>
 
 /** Starts or stops the background new-message checks (no-op where not supported). */
-expect fun setBackgroundMessageChecks(enabled: Boolean)
+expect suspend fun setBackgroundMessageChecks(enabled: Boolean)

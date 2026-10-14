@@ -12,7 +12,7 @@ actual fun triggerMessageCheckNow() {
 actual fun checkNowState(): Flow<CheckNowState> =
     appContext?.let { MessageCheckWorker.runNowState(it) } ?: flowOf(CheckNowState.Idle)
 
-actual fun setBackgroundMessageChecks(enabled: Boolean) {
+actual suspend fun setBackgroundMessageChecks(enabled: Boolean) {
     val context = appContext ?: return
     if (enabled) MessageCheckWorker.scheduleNext(context, ExistingWorkPolicy.REPLACE) else MessageCheckWorker.cancel(context)
 }

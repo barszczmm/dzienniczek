@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit
  * (grades, exams, …) and posts them as notifications.
  *
  * Instead of a fixed periodic job, each run schedules the next one after a random
- * delay (about an hour, only during the day – see [BackgroundSchedule]), so requests
+ * delay (about an hour, only in the hours set by the user – see [BackgroundSchedule]), so requests
  * don't hit the servers at a regular rhythm. Runs only when enabled in the settings.
  */
 class MessageCheckWorker(
@@ -40,7 +40,8 @@ class MessageCheckWorker(
         val pollingEnabled = settings.isMessagePollingEnabled()
         if (isScheduledRun && !pollingEnabled) return Result.success()
         // A scheduled run delayed into the night (e.g. by battery saving) only plans the next one.
-        if (isScheduledRun && !BackgroundSchedule.isActive()) {
+        val hours = settings.checkHours.first()
+        if (isScheduledRun && !BackgroundSchedule.isActive(hours.first, hours.last)) {
             scheduleNext(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
             return Result.success()
         }
@@ -79,8 +80,9 @@ class MessageCheckWorker(
          * already waiting check), REPLACE when the setting is turned on, APPEND_OR_REPLACE
          * from the running worker.
          */
-        fun scheduleNext(context: Context, policy: ExistingWorkPolicy) {
-            val delayMinutes = BackgroundSchedule.nextDelayMinutes()
+        suspend fun scheduleNext(context: Context, policy: ExistingWorkPolicy) {
+            val hours = KoinPlatform.getKoin().get<AppSettings>().checkHours.first()
+            val delayMinutes = BackgroundSchedule.nextDelayMinutes(hours.first, hours.last)
             val request = OneTimeWorkRequestBuilder<MessageCheckWorker>()
                 .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
                 .setConstraints(constraints)

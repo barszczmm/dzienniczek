@@ -1,6 +1,7 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -48,6 +51,7 @@ fun SettingsScreen(
     val polling by viewModel.messagePolling.collectAsStateWithLifecycle()
     val checks by viewModel.backgroundChecks.collectAsStateWithLifecycle()
     val checkNowState by viewModel.checkNowState.collectAsStateWithLifecycle()
+    val checkHours by viewModel.checkHours.collectAsStateWithLifecycle()
     // The result of a check is shown only after the button was pressed on this screen.
     var checkRequested by remember { mutableStateOf(false) }
     val checking = checkNowState is CheckNowState.Running || checkNowState is CheckNowState.Waiting
@@ -82,8 +86,7 @@ fun SettingsScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "Mniej więcej co godzinę (losowo ${BackgroundSchedule.MIN_DELAY_MINUTES}–" +
-                                "${BackgroundSchedule.MAX_DELAY_MINUTES} min), w godzinach " +
-                                "${BackgroundSchedule.START_HOUR}:00–${BackgroundSchedule.END_HOUR}:00, aplikacja sprawdza " +
+                                "${BackgroundSchedule.MAX_DELAY_MINUTES} min), w wybranych poniżej godzinach, aplikacja sprawdza " +
                                 "wszystkich włączonych uczniów (Librus i eduVulcan) i pokazuje powiadomienie " +
                                 "o nowych wpisach z zaznaczonych " +
                                 "poniżej kategorii. Wiadomości – z pełną treścią.",
@@ -98,6 +101,29 @@ fun SettingsScreen(
                             viewModel.setMessagePolling(enabled)
                         }
                     )
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Godziny sprawdzania",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text("od", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.width(8.dp))
+                    HourPicker(hour = checkHours.first, hours = 0..23) {
+                        viewModel.setCheckHours(it, checkHours.last)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text("do", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.width(8.dp))
+                    HourPicker(hour = checkHours.last, hours = (checkHours.first + 1)..24) {
+                        viewModel.setCheckHours(checkHours.first, it)
+                    }
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -199,6 +225,28 @@ fun SettingsScreen(
                         Text(if (diagnosticsRunning) "Pobieranie…" else "Eksportuj dane diagnostyczne")
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Full hour as a button; tapping it lists [hours] to choose from (24 = midnight). */
+@Composable
+private fun HourPicker(hour: Int, hours: IntRange, onSelect: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text("$hour:00")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            hours.forEach { h ->
+                DropdownMenuItem(
+                    text = { Text("$h:00") },
+                    onClick = {
+                        expanded = false
+                        onSelect(h)
+                    }
+                )
             }
         }
     }
