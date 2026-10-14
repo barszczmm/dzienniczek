@@ -22,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -31,7 +30,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
@@ -148,9 +146,6 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
                             )
                         }
                     }
-                    IconButton(onClick = { viewModel.load(forceRefresh = true) }, enabled = !state.isLoading) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Odśwież")
-                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -176,7 +171,7 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
                     }
                     Text(
                         text = "Otwiera frekwencję w eduVulcan w przeglądarce (przycisk „Usprawiedliw”). " +
-                            "Po wysłaniu odśwież tę listę ↻.",
+                            "Po wysłaniu odśwież tę listę, przeciągając ją w dół.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp)
