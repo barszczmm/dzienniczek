@@ -20,7 +20,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
 /** How many days back (grades) and ahead (exams, homework) the start screen covers. */
-const val START_DAYS = 7
+const val START_DAYS = 14
 
 data class StartState(
     val isLoading: Boolean = false,
@@ -61,8 +61,8 @@ class StartViewModel(
         
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         val dateToday = today.date
-        val oneWeekAgo = dateToday.minus(START_DAYS, DateTimeUnit.DAY)
-        val oneWeekAhead = dateToday.plus(START_DAYS, DateTimeUnit.DAY)
+        val rangeStart = dateToday.minus(START_DAYS, DateTimeUnit.DAY)
+        val rangeEnd = dateToday.plus(START_DAYS, DateTimeUnit.DAY)
 
         viewModelScope.launch {
             _state.value = StartState(isLoading = true)
@@ -75,7 +75,7 @@ class StartViewModel(
                     periodId = period.id
                 )
                 val recentGrades = grades.filter { 
-                    it.createdAt.date >= oneWeekAgo
+                    it.createdAt.date >= rangeStart
                 }.sortedByDescending { it.createdAt }
 
                 // Fetch exams
@@ -83,7 +83,7 @@ class StartViewModel(
                     restUrl = account.unit.restUrl,
                     pupilId = account.pupil.id,
                     dateFrom = dateToday,
-                    dateTo = oneWeekAhead
+                    dateTo = rangeEnd
                 ).sortedBy { it.deadline }
                 
                 // Fetch homework
@@ -91,7 +91,7 @@ class StartViewModel(
                     restUrl = account.unit.restUrl,
                     pupilId = account.pupil.id,
                     dateFrom = dateToday,
-                    dateTo = oneWeekAhead
+                    dateTo = rangeEnd
                 ).sortedBy { it.deadline }
 
                 _state.value = StartState(
