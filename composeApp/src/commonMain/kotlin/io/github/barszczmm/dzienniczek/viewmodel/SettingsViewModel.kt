@@ -2,6 +2,8 @@ package io.github.barszczmm.dzienniczek.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.barszczmm.dzienniczek.notifications.CheckNowState
+import io.github.barszczmm.dzienniczek.notifications.checkNowState
 import io.github.barszczmm.dzienniczek.notifications.setBackgroundMessageChecks
 import io.github.barszczmm.dzienniczek.notifications.triggerMessageCheckNow
 import io.github.barszczmm.dzienniczek.platform.shareText
@@ -109,6 +111,9 @@ class SettingsViewModel(
     fun setBackgroundCheck(check: BackgroundCheck, enabled: Boolean) {
         viewModelScope.launch { settings.setBackgroundCheck(check, enabled) }
     }
+
+    val checkNowState: StateFlow<CheckNowState> = checkNowState()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CheckNowState.Idle)
 
     fun checkNow() = triggerMessageCheckNow()
 }

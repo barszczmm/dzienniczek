@@ -11,7 +11,7 @@ enum class BackgroundCheck(val label: String) {
     ATTENDANCE("Frekwencja");
 
     companion object {
-        /** Only messages were checked before the choice existed. */
-        val DEFAULT: Set<BackgroundCheck> = setOf(MESSAGES)
+        /** Nothing is checked until the user ticks it. */
+        val DEFAULT: Set<BackgroundCheck> = emptySet()
     }
 }

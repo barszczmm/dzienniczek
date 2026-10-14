@@ -6,12 +6,16 @@ import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import io.github.barszczmm.dzienniczek.di.initKoin
 import io.github.barszczmm.dzienniczek.settings.AppSettings
 import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.koin.mp.KoinPlatform
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
@@ -37,17 +41,22 @@ class MessageCheckWorker(
         val pollingEnabled = settings.isMessagePollingEnabled()
         if (isScheduledRun && !pollingEnabled) return Result.success()
 
+        var found = 0
         try {
             val checks = settings.backgroundChecks.first()
             if (BackgroundCheck.MESSAGES in checks) {
-                koin.get<MessageChecker>().check().forEach { MessageNotifier.show(applicationContext, it) }
+                val messages = koin.get<MessageChecker>().check()
+                messages.forEach { MessageNotifier.show(applicationContext, it) }
+                found += messages.size
             }
-            koin.get<JournalChecker>().check(checks).forEach { MessageNotifier.show(applicationContext, it) }
+            val updates = koin.get<JournalChecker>().check(checks)
+            updates.forEach { MessageNotifier.show(applicationContext, it) }
+            found += updates.size
         } finally {
             // This run is still active, so the next one is appended after it.
             if (isScheduledRun && pollingEnabled) scheduleNext(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
         }
-        return Result.success()
+        return Result.success(workDataOf(KEY_FOUND to found))
     }
 
     companion object {
@@ -55,6 +64,7 @@ class MessageCheckWorker(
         private const val ONE_TIME_WORK = "message-check-now"
         private const val LEGACY_PERIODIC_WORK = "message-check"
         private const val TAG_SCHEDULED = "scheduled"
+        private const val KEY_FOUND = "found"
 
         /** Random delay between checks: 25–40 minutes (≈30 on average). */
         private const val MIN_DELAY_MINUTES = 25
@@ -90,6 +100,18 @@ class MessageCheckWorker(
             workManager.cancelUniqueWork(SCHEDULED_WORK)
             workManager.cancelUniqueWork(LEGACY_PERIODIC_WORK)
         }
+
+        /** Progress of the check started with [runNow], for the settings screen. */
+        fun runNowState(context: Context): Flow<CheckNowState> =
+            WorkManager.getInstance(context).getWorkInfosForUniqueWorkFlow(ONE_TIME_WORK).map { infos ->
+                val info = infos.lastOrNull() ?: return@map CheckNowState.Idle
+                when (info.state) {
+                    WorkInfo.State.ENQUEUED, WorkInfo.State.BLOCKED -> CheckNowState.Waiting
+                    WorkInfo.State.RUNNING -> CheckNowState.Running
+                    WorkInfo.State.SUCCEEDED -> CheckNowState.Done(info.outputData.getInt(KEY_FOUND, 0))
+                    else -> CheckNowState.Idle
+                }
+            }
 
         fun runNow(context: Context) {
             val request = OneTimeWorkRequestBuilder<MessageCheckWorker>()

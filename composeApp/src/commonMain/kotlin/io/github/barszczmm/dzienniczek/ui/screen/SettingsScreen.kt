@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,12 +26,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.barszczmm.dzienniczek.notifications.rememberNotificationPermissionRequest
+import io.github.barszczmm.dzienniczek.notifications.CheckNowState
 import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import io.github.barszczmm.dzienniczek.viewmodel.SettingsViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -40,6 +46,10 @@ fun SettingsScreen(
 ) {
     val polling by viewModel.messagePolling.collectAsStateWithLifecycle()
     val checks by viewModel.backgroundChecks.collectAsStateWithLifecycle()
+    val checkNowState by viewModel.checkNowState.collectAsStateWithLifecycle()
+    // The result of a check is shown only after the button was pressed on this screen.
+    var checkRequested by remember { mutableStateOf(false) }
+    val checking = checkNowState is CheckNowState.Running || checkNowState is CheckNowState.Waiting
     val diagnosticsRunning by viewModel.diagnosticsRunning.collectAsStateWithLifecycle()
     val requestNotificationPermission = rememberNotificationPermissionRequest()
 
@@ -71,7 +81,8 @@ fun SettingsScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "Mniej więcej co 30 minut (losowo 25–40 min) aplikacja sprawdza " +
-                                "wszystkie konta i pokazuje powiadomienie o nowych wpisach z zaznaczonych " +
+                                "wszystkich włączonych uczniów (Librus i eduVulcan) i pokazuje powiadomienie " +
+                                "o nowych wpisach z zaznaczonych " +
                                 "poniżej kategorii. Wiadomości – z pełną treścią.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -122,13 +133,38 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = {
                         requestNotificationPermission()
+                        checkRequested = true
                         viewModel.checkNow()
                     },
+                    enabled = checks.isNotEmpty() && !checking,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(imageVector = Icons.Outlined.Refresh, contentDescription = null)
+                    if (checking) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(imageVector = Icons.Outlined.Refresh, contentDescription = null)
+                    }
                     Spacer(Modifier.width(8.dp))
-                    Text("Sprawdź teraz")
+                    Text(
+                        when (checkNowState) {
+                            CheckNowState.Waiting -> "Czekam na połączenie…"
+                            CheckNowState.Running -> "Sprawdzanie…"
+                            else -> "Sprawdź teraz"
+                        }
+                    )
+                }
+                val done = checkNowState as? CheckNowState.Done
+                if (checkRequested && done != null) {
+                    Text(
+                        text = when (done.found) {
+                            0 -> "Brak nowości."
+                            1 -> "Znaleziono 1 nowość – zobacz powiadomienia."
+                            else -> "Znaleziono nowości: ${done.found} – zobacz powiadomienia."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
                 }
             }
         }
