@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.barszczmm.dzienniczek.notifications.rememberNotificationPermissionRequest
+import io.github.barszczmm.dzienniczek.notifications.BackgroundSchedule
 import io.github.barszczmm.dzienniczek.notifications.CheckNowState
 import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import io.github.barszczmm.dzienniczek.viewmodel.SettingsViewModel
@@ -80,7 +81,9 @@ fun SettingsScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Mniej więcej co 30 minut (losowo 25–40 min) aplikacja sprawdza " +
+                            text = "Mniej więcej co godzinę (losowo ${BackgroundSchedule.MIN_DELAY_MINUTES}–" +
+                                "${BackgroundSchedule.MAX_DELAY_MINUTES} min), w godzinach " +
+                                "${BackgroundSchedule.START_HOUR}:00–${BackgroundSchedule.END_HOUR}:00, aplikacja sprawdza " +
                                 "wszystkich włączonych uczniów (Librus i eduVulcan) i pokazuje powiadomienie " +
                                 "o nowych wpisach z zaznaczonych " +
                                 "poniżej kategorii. Wiadomości – z pełną treścią.",

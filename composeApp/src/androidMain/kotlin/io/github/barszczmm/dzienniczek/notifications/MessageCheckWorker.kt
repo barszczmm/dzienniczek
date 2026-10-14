@@ -18,15 +18,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.koin.mp.KoinPlatform
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 /**
  * Checks Librus / eduVulcan for new messages and the other kinds chosen in the settings
  * (grades, exams, …) and posts them as notifications.
  *
  * Instead of a fixed periodic job, each run schedules the next one after a random
- * delay (about 30 minutes), so requests don't hit the servers at a regular rhythm.
- * Runs only when enabled in the settings.
+ * delay (about an hour, only during the day – see [BackgroundSchedule]), so requests
+ * don't hit the servers at a regular rhythm. Runs only when enabled in the settings.
  */
 class MessageCheckWorker(
     context: Context,
@@ -40,6 +39,11 @@ class MessageCheckWorker(
         val settings = koin.get<AppSettings>()
         val pollingEnabled = settings.isMessagePollingEnabled()
         if (isScheduledRun && !pollingEnabled) return Result.success()
+        // A scheduled run delayed into the night (e.g. by battery saving) only plans the next one.
+        if (isScheduledRun && !BackgroundSchedule.isActive()) {
+            scheduleNext(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
+            return Result.success()
+        }
 
         var found = 0
         try {
@@ -66,10 +70,6 @@ class MessageCheckWorker(
         private const val TAG_SCHEDULED = "scheduled"
         private const val KEY_FOUND = "found"
 
-        /** Random delay between checks: 25–40 minutes (≈30 on average). */
-        private const val MIN_DELAY_MINUTES = 25
-        private const val MAX_DELAY_MINUTES = 40
-
         private val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
@@ -80,7 +80,7 @@ class MessageCheckWorker(
          * from the running worker.
          */
         fun scheduleNext(context: Context, policy: ExistingWorkPolicy) {
-            val delayMinutes = Random.nextInt(MIN_DELAY_MINUTES, MAX_DELAY_MINUTES + 1).toLong()
+            val delayMinutes = BackgroundSchedule.nextDelayMinutes()
             val request = OneTimeWorkRequestBuilder<MessageCheckWorker>()
                 .setInitialDelay(delayMinutes, TimeUnit.MINUTES)
                 .setConstraints(constraints)
