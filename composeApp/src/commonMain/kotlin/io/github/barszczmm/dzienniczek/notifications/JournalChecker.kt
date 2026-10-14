@@ -37,7 +37,7 @@ class JournalChecker(
 ) {
     private val mutex = Mutex()
 
-    suspend fun check(checks: Set<BackgroundCheck>): List<JournalUpdate> = mutex.withLock {
+    suspend fun check(checks: Set<BackgroundCheck>, pacer: RequestPacer = RequestPacer()): List<JournalUpdate> = mutex.withLock {
         val kinds = checks - BackgroundCheck.MESSAGES
         if (kinds.isEmpty()) return@withLock emptyList()
 
@@ -45,6 +45,7 @@ class JournalChecker(
         val students = sessionStorage.loadStudents().filter { it.isEnabled }
         for (student in students) {
             for (kind in kinds) {
+                pacer.pause()
                 runCatching { result += checkStudent(student, kind) }.onFailure { it.printStackTrace() }
             }
             // Librus refreshes expired tokens on the fly – keep the new ones.

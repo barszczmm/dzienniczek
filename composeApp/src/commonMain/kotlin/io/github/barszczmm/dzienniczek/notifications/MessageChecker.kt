@@ -39,7 +39,11 @@ class MessageChecker(
 ) {
     private val mutex = Mutex()
 
-    suspend fun check(): List<NewMessage> = mutex.withLock {
+    /** Pauses between the requests of the current check (guarded by [mutex]). */
+    private var pacer = RequestPacer()
+
+    suspend fun check(pacer: RequestPacer = RequestPacer()): List<NewMessage> = mutex.withLock {
+        this.pacer = pacer
         val result = mutableListOf<NewMessage>()
         runCatching { checkLibrus(result) }.onFailure { it.printStackTrace() }
         runCatching { checkVulcan(result) }.onFailure { it.printStackTrace() }
@@ -66,6 +70,7 @@ class MessageChecker(
         }
         try {
             for (student in students) {
+                pacer.pause()
                 runCatching {
                     val credential = student.librus!!
                     val account = credential.synergiaAccount
@@ -88,6 +93,7 @@ class MessageChecker(
                     val sourceKey = "librus:${account.login}"
                     val newIds = diffAndRemember(sourceKey, messages.map { it.id })
                     messages.filter { it.id in newIds }.forEach { msg ->
+                        pacer.pause()
                         val content = runCatching { api.getSynergiaMessageContent(msg.id) }.getOrDefault("")
                         out += NewMessage(
                             key = "$sourceKey:${msg.id}",
@@ -119,6 +125,7 @@ class MessageChecker(
             .distinctBy { "${it.prometheusTenant}|${it.prometheusLogin}" }
 
         for (student in webLogins) {
+            pacer.pause()
             runCatching {
                 checkPrometheus(
                     tenant = student.prometheusTenant!!,
@@ -134,6 +141,7 @@ class MessageChecker(
             .filter { it.prometheusLogin == null }
             .distinctBy { it.account.messageBox?.globalKey ?: it.id }
         for (student in hebeStudents) {
+            pacer.pause()
             runCatching {
                 val account = student.account
                 val box = account.messageBox?.globalKey ?: return@runCatching
@@ -184,12 +192,14 @@ class MessageChecker(
 
         val mailboxes = withApi { it.getMailboxes() }
         for (mailbox in mailboxes) {
+            pacer.pause()
             runCatching {
                 val messages = withApi { it.getReceivedMessages(mailboxKey = mailbox.globalKey) }
                 val sourceKey = "vulcan:${mailbox.globalKey}"
                 val newIds = diffAndRemember(sourceKey, messages.map { it.apiGlobalKey })
                 val studentName = VulcanMailboxName.parse(mailbox.nazwa)?.studentName ?: mailbox.nazwa
                 messages.filter { it.apiGlobalKey in newIds }.forEach { msg ->
+                    pacer.pause()
                     val details = runCatching { withApi { it.getMessageDetails(msg.apiGlobalKey) } }.getOrNull()
                     out += NewMessage(
                         key = "$sourceKey:${msg.apiGlobalKey}",

@@ -49,12 +49,14 @@ class MessageCheckWorker(
         var found = 0
         try {
             val checks = settings.backgroundChecks.first()
+            // One pacer for the whole run: a few random seconds between all requests.
+            val pacer = RequestPacer()
             if (BackgroundCheck.MESSAGES in checks) {
-                val messages = koin.get<MessageChecker>().check()
+                val messages = koin.get<MessageChecker>().check(pacer)
                 messages.forEach { MessageNotifier.show(applicationContext, it) }
                 found += messages.size
             }
-            val updates = koin.get<JournalChecker>().check(checks)
+            val updates = koin.get<JournalChecker>().check(checks, pacer)
             updates.forEach { MessageNotifier.show(applicationContext, it) }
             found += updates.size
         } finally {
