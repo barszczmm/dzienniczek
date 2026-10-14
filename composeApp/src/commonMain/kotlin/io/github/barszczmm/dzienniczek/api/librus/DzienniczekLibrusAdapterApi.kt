@@ -153,7 +153,9 @@ class DzienniczekLibrusAdapterApi(
         val subjects = getSubjects()
         val categories = getEventCategories()
         val users = getUsers()
+        // Librus returns every event of the school year – keep only the requested range.
         return LibrusMapper.mapExams(events, subjects, categories, users)
+            .filter { it.deadline in dateFrom..dateTo }
     }
 
     override suspend fun getHomework(
@@ -168,7 +170,9 @@ class DzienniczekLibrusAdapterApi(
         val homework = librusApi.getHomework()
         val subjects = getSubjects()
         val users = getUsers()
+        // Librus returns all homework of the school year – keep only the requested range.
         return LibrusMapper.mapHomework(homework, subjects, users)
+            .filter { it.deadline in dateFrom..dateTo }
     }
 
     override suspend fun getAttendance(
