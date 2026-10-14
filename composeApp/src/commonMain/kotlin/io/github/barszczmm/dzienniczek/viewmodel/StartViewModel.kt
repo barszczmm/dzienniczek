@@ -19,6 +19,9 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
+/** How many days back (grades) and ahead (exams, homework) the start screen covers. */
+const val START_DAYS = 7
+
 data class StartState(
     val isLoading: Boolean = false,
     val firstName: String = "",
@@ -58,8 +61,8 @@ class StartViewModel(
         
         val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         val dateToday = today.date
-        val oneWeekAgo = dateToday.minus(7, DateTimeUnit.DAY)
-        val oneWeekAhead = dateToday.plus(7, DateTimeUnit.DAY)
+        val oneWeekAgo = dateToday.minus(START_DAYS, DateTimeUnit.DAY)
+        val oneWeekAhead = dateToday.plus(START_DAYS, DateTimeUnit.DAY)
 
         viewModelScope.launch {
             _state.value = StartState(isLoading = true)

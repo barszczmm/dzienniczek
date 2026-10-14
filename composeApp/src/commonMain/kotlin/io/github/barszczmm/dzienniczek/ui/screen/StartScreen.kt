@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.barszczmm.dzienniczek.navigation.Route
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
+import io.github.barszczmm.dzienniczek.viewmodel.START_DAYS
 import io.github.barszczmm.dzienniczek.viewmodel.StartViewModel
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -122,11 +123,7 @@ fun StartScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Ostatnie oceny",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        SectionTitle("Ostatnie oceny", "dodane w ostatnich $START_DAYS dniach")
                     }
                     if (state.recentGrades.isNotEmpty()) {
                         FlowRow(
@@ -139,7 +136,7 @@ fun StartScreen(
                             }
                         }
                     } else {
-                        EmptinessText("Brak nowych ocen z ostatnich 7 dni.")
+                        EmptinessText("Brak nowych ocen z ostatnich $START_DAYS dni.")
                     }
                 }
             }
@@ -161,11 +158,7 @@ fun StartScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Najbliższe sprawdziany",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        SectionTitle("Najbliższe sprawdziany", "na najbliższe $START_DAYS dni")
                     }
                     if (state.upcomingExams.isNotEmpty()) {
                         Column {
@@ -181,7 +174,7 @@ fun StartScreen(
                             }
                         }
                     } else {
-                        EmptinessText("Brak sprawdzianów zapowiedzianych na nadchodzący tydzień.")
+                        EmptinessText("Brak sprawdzianów zapowiedzianych na najbliższe $START_DAYS dni.")
                     }
                 }
             }
@@ -203,11 +196,7 @@ fun StartScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = "Nadchodzące zadania domowe",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        SectionTitle("Nadchodzące zadania domowe", "na najbliższe $START_DAYS dni")
                     }
                     if (state.upcomingHomework.isNotEmpty()) {
                         Column {
@@ -223,11 +212,28 @@ fun StartScreen(
                             }
                         }
                     } else {
-                        EmptinessText("Brak zadań domowych z terminem na najbliższe 7 dni.")
+                        EmptinessText("Brak zadań domowych z terminem na najbliższe $START_DAYS dni.")
                     }
                 }
             }
         }
+    }
+}
+
+/** Section name with the covered period below it, e.g. "na najbliższe 7 dni". */
+@Composable
+private fun SectionTitle(title: String, period: String) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            text = period,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
