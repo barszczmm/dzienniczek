@@ -48,6 +48,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import io.github.barszczmm.dzienniczek.navigation.Route
+import io.github.barszczmm.dzienniczek.notifications.NotificationNavigation
+import io.github.barszczmm.dzienniczek.notifications.NotificationTarget
+import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.DashboardViewModel
 import org.koin.compose.viewmodel.koinViewModel
@@ -80,6 +84,19 @@ private enum class DashboardTab(
     ATTENDANCE("Obecność", Icons.Outlined.EventBusy, Icons.Filled.EventBusy, Route.Attendance),
     MESSAGES("Wiadomości", Icons.AutoMirrored.Outlined.Message, Icons.AutoMirrored.Filled.Message, Route.Messages),
     MORE("Więcej", Icons.Outlined.MoreHoriz, Icons.Filled.MoreHoriz, Route.More)
+}
+
+private fun NotificationTarget.routes(): List<Route> = when (check) {
+    BackgroundCheck.MESSAGES -> listOfNotNull(
+        Route.Messages,
+        messageId?.let { Route.MessageDetails(id = it, isHebe = isHebe, hebeContent = hebeContent) }
+    )
+    BackgroundCheck.GRADES -> listOf(Route.More, Route.Grades)
+    BackgroundCheck.EXAMS -> listOf(Route.More, Route.Exams)
+    BackgroundCheck.HOMEWORK -> listOf(Route.More, Route.Homework)
+    BackgroundCheck.NOTES -> listOf(Route.More, Route.Notes)
+    BackgroundCheck.ANNOUNCEMENTS -> listOf(Route.More, Route.Announcements)
+    BackgroundCheck.ATTENDANCE -> listOf(Route.Attendance)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,6 +116,16 @@ fun DashboardScreen(
 
     val backStack = remember { mutableStateListOf<Route>(Route.Start) }
     val currentRoute = backStack.lastOrNull()
+
+    // A tapped notification opens its student and the screen it is about.
+    val notificationTarget by NotificationNavigation.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(notificationTarget) {
+        val target = notificationTarget ?: return@LaunchedEffect
+        target.studentId?.let { viewModel.selectStudent(it) }
+        backStack.clear()
+        backStack.addAll(target.routes())
+        NotificationNavigation.consume(target)
+    }
 
     // Screens opened from "Więcej" – the "Więcej" tab stays selected and a back arrow is shown.
     val moreRoutes = listOf(

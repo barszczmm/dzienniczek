@@ -8,7 +8,10 @@ import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.ui.model.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import io.github.barszczmm.dzienniczek.util.parseJournalDateTime
 import io.github.barszczmm.dzienniczek.util.displayMailboxName
@@ -32,7 +35,12 @@ class MessagesViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MessagesState(isLoading = true))
-    val state: StateFlow<MessagesState> = _state
+
+    /** Messages opened since the list was downloaded are shown as read right away. */
+    val state: StateFlow<MessagesState> = combine(_state, session.openedMessageIds) { state, opened ->
+        if (state.messages.none { it.isUnread && it.id in opened }) state
+        else state.copy(messages = state.messages.map { if (it.id in opened) it.copy(isUnread = false) else it })
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, _state.value)
 
     init {
         viewModelScope.launch {

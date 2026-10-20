@@ -19,6 +19,7 @@ import kotlin.time.Clock
 data class JournalUpdate(
     val key: String,
     val check: BackgroundCheck,
+    val studentId: String,
     val studentName: String,
     val title: String,
     val text: String
@@ -146,6 +147,7 @@ class JournalChecker(
                 JournalUpdate(
                     key = "$sourceKey:${fresh.joinToString(",") { it.id }.hashCode()}",
                     check = kind,
+                    studentId = student.id,
                     studentName = name,
                     title = "${kind.label}: ${newEntries(fresh.size)}",
                     text = fresh.joinToString("\n") { it.title }
@@ -153,7 +155,7 @@ class JournalChecker(
             )
         }
         return fresh.map {
-            JournalUpdate(key = "$sourceKey:${it.id}", check = kind, studentName = name, title = it.title, text = it.text)
+            JournalUpdate(key = "$sourceKey:${it.id}", check = kind, studentId = student.id, studentName = name, title = it.title, text = it.text)
         }
     }
 

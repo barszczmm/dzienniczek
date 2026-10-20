@@ -84,6 +84,7 @@ class MessageDetailsViewModel(
                         subject = details.subject,
                         date = parseJournalDateTime(details.date)?.let { formatJournalDateTime(it) } ?: details.date
                     )
+                    session.markMessageOpened(id)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     loadedId = null
@@ -101,6 +102,7 @@ class MessageDetailsViewModel(
                     isLoading = false,
                     content = hebeContent ?: "Brak treści wiadomości."
                 )
+                session.markMessageOpened(id)
                 val account = session.currentAccount
                 val api = session.api
                 if (account != null && api != null) {
@@ -123,6 +125,7 @@ class MessageDetailsViewModel(
                         subject = details.temat,
                         date = parseJournalDateTime(details.data)?.let { formatJournalDateTime(it) } ?: details.data
                     )
+                    session.markMessageOpened(id)
                 } catch (e: Exception) {
                     e.printStackTrace()
                     _state.value = _state.value.copy(

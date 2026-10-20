@@ -20,12 +20,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import io.github.barszczmm.dzienniczek.di.initKoin
 import io.github.barszczmm.dzienniczek.navigation.Route
+import io.github.barszczmm.dzienniczek.notifications.NotificationNavigation
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.session.SessionEvents
 import io.github.barszczmm.dzienniczek.session.SessionStorage
@@ -79,6 +81,15 @@ private fun AppNavigation() {
     }
 
     val backStack = remember { mutableStateListOf<Route>(startRoute) }
+
+    // A tapped notification is opened by the dashboard, so make sure it is shown (e.g. over the login screen).
+    val notificationTarget by NotificationNavigation.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(notificationTarget) {
+        if (notificationTarget != null && session.studentSessions.value.isNotEmpty() && backStack.lastOrNull() != Route.Dashboard) {
+            backStack.clear()
+            backStack.add(Route.Dashboard)
+        }
+    }
 
     NavDisplay(
         modifier = Modifier.fillMaxSize(),

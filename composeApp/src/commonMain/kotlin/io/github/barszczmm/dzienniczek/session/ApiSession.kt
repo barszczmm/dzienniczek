@@ -35,6 +35,15 @@ class ApiSession {
             _activeStudent.value?.prometheusMailboxKey = value
         }
 
+    private val _openedMessageIds = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Messages opened in this app run – shown as read even before the list is downloaded again. */
+    val openedMessageIds: StateFlow<Set<String>> = _openedMessageIds.asStateFlow()
+
+    fun markMessageOpened(id: String) {
+        _openedMessageIds.value += id
+    }
+
     val enabledStudents: List<StudentSession>
         get() = _studentSessions.value.filter { it.isEnabled }
 

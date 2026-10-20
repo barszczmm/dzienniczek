@@ -5,6 +5,7 @@ import io.github.barszczmm.dzienniczek.api.librus.DzienniczekLibrusApi
 import io.github.barszczmm.dzienniczek.api.prometheus.PrometheusMessagesApi
 import io.github.barszczmm.dzienniczek.api.prometheus.models.VulcanMailboxName
 import io.github.barszczmm.dzienniczek.session.SessionStorage
+import io.github.barszczmm.dzienniczek.session.StudentSession
 import io.github.barszczmm.dzienniczek.viewmodel.MessageTab
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
@@ -12,10 +13,17 @@ import io.ktor.client.plugins.cookies.HttpCookies
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** A message that was not seen in any previous check. [body] may contain HTML when [isHtml] is true. */
+/**
+ * A message that was not seen in any previous check. [body] may contain HTML when [isHtml] is true.
+ * [studentId] and [messageId] let a tap on the notification open this message for the right student;
+ * [isHebe] marks messages read through Hebe, whose content comes with the list.
+ */
 data class NewMessage(
     val key: String,
     val source: String,
+    val studentId: String?,
+    val messageId: String,
+    val isHebe: Boolean,
     val studentName: String?,
     val sender: String,
     val subject: String,
@@ -101,6 +109,9 @@ class MessageChecker(
                         out += NewMessage(
                             key = "$sourceKey:${msg.id}",
                             source = "Librus",
+                            studentId = student.id,
+                            messageId = msg.id,
+                            isHebe = false,
                             studentName = account.studentName,
                             sender = msg.senderOrRecipient,
                             subject = msg.title,
@@ -125,16 +136,19 @@ class MessageChecker(
         // so group by login and walk all mailboxes of that login.
         val webLogins = students
             .filter { it.prometheusLogin != null && it.prometheusPassword != null && it.prometheusTenant != null }
-            .distinctBy { "${it.prometheusTenant}|${it.prometheusLogin}" }
+            .groupBy { "${it.prometheusTenant}|${it.prometheusLogin}" }
+            .values
             .shuffled()
 
-        for (student in webLogins) {
+        for (loginStudents in webLogins) {
+            val student = loginStudents.first()
             pacer.pause()
             runCatching {
                 checkPrometheus(
                     tenant = student.prometheusTenant!!,
                     login = student.prometheusLogin!!,
                     password = student.prometheusPassword!!,
+                    students = loginStudents,
                     out = out
                 )
             }.onFailure { it.printStackTrace() }
@@ -161,6 +175,9 @@ class MessageChecker(
                     out += NewMessage(
                         key = "$sourceKey:${msg.id}",
                         source = "eduVulcan",
+                        studentId = student.id,
+                        messageId = msg.id,
+                        isHebe = true,
                         studentName = "${account.pupil.firstName} ${account.pupil.surname}".trim(),
                         sender = msg.sender.name,
                         subject = msg.subject,
@@ -176,6 +193,7 @@ class MessageChecker(
         tenant: String,
         login: String,
         password: String,
+        students: List<StudentSession>,
         out: MutableList<NewMessage>
     ) {
         val cacheKey = "$tenant|$login"
@@ -203,12 +221,22 @@ class MessageChecker(
                 val sourceKey = "vulcan:${mailbox.globalKey}"
                 val newIds = diffAndRemember(sourceKey, messages.map { it.apiGlobalKey })
                 val studentName = VulcanMailboxName.parse(mailbox.nazwa)?.studentName ?: mailbox.nazwa
+                // Same matching as the messages screen: the mailbox name contains the child's name.
+                val studentId = students.firstOrNull { s ->
+                    val firstName = s.account.pupil.firstName.trim()
+                    val surname = s.account.pupil.surname.trim()
+                    firstName.isNotEmpty() && studentName.contains(firstName, ignoreCase = true) &&
+                        surname.isNotEmpty() && studentName.contains(surname, ignoreCase = true)
+                }?.id ?: students.singleOrNull()?.id
                 messages.filter { it.apiGlobalKey in newIds }.forEach { msg ->
                     pacer.pause()
                     val details = runCatching { withApi { it.getMessageDetails(msg.apiGlobalKey) } }.getOrNull()
                     out += NewMessage(
                         key = "$sourceKey:${msg.apiGlobalKey}",
                         source = "eduVulcan",
+                        studentId = studentId,
+                        messageId = msg.apiGlobalKey,
+                        isHebe = false,
                         studentName = studentName,
                         sender = details?.nadawca?.ifBlank { null } ?: msg.korespondenci ?: "Nieznany",
                         subject = details?.temat?.ifBlank { null } ?: msg.temat,
