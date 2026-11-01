@@ -400,15 +400,21 @@ private fun StudentAvatar(
     // +1 when the next student came from a swipe down, -1 for the previous one (swipe up).
     var direction by remember { mutableStateOf(1) }
 
+    // The gesture handler is created once, so it reads the current values through these states
+    // (a plain `::switchBy` reference would be memoized by Compose with the first values).
+    val currentStudents by rememberUpdatedState(students)
+    val currentActive by rememberUpdatedState(activeStudent)
+    val currentOnSelect by rememberUpdatedState(onSelect)
+
     fun switchBy(step: Int): Boolean {
-        if (students.size < 2) return false
-        val index = students.indexOfFirst { it.id == activeStudent?.id }.coerceAtLeast(0)
+        val list = currentStudents
+        if (list.size < 2) return false
+        val index = list.indexOfFirst { it.id == currentActive?.id }.coerceAtLeast(0)
         direction = step
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        onSelect(students[(index + step).mod(students.size)])
+        currentOnSelect(list[(index + step).mod(list.size)])
         return true
     }
-    val currentSwitchBy by rememberUpdatedState(::switchBy)
 
     Surface(
         onClick = onClick,
@@ -421,8 +427,8 @@ private fun StudentAvatar(
                 contentDescription = "Uczeń: ${activeStudent?.account?.pupil?.let { "${it.firstName} ${it.surname}" } ?: "brak"}"
                 if (students.size > 1) {
                     customActions = listOf(
-                        CustomAccessibilityAction("Następny uczeń") { currentSwitchBy(1) },
-                        CustomAccessibilityAction("Poprzedni uczeń") { currentSwitchBy(-1) }
+                        CustomAccessibilityAction("Następny uczeń") { switchBy(1) },
+                        CustomAccessibilityAction("Poprzedni uczeń") { switchBy(-1) }
                     )
                 }
             }
@@ -432,8 +438,8 @@ private fun StudentAvatar(
                     onDragStart = { total = 0f },
                     onDragEnd = {
                         when {
-                            total > thresholdPx -> currentSwitchBy(1)
-                            total < -thresholdPx -> currentSwitchBy(-1)
+                            total > thresholdPx -> switchBy(1)
+                            total < -thresholdPx -> switchBy(-1)
                         }
                         scope.launch { dragOffset.animateTo(0f) }
                     },
