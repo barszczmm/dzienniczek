@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.barszczmm.dzienniczek.api.librus.DzienniczekLibrusAdapterApi
 import io.github.barszczmm.dzienniczek.api.prometheus.models.VulcanMailboxName
+import io.github.barszczmm.dzienniczek.notifications.MessageChecker
+import io.github.barszczmm.dzienniczek.notifications.SeenItems
 import io.github.barszczmm.dzienniczek.session.ApiSession
 import io.github.barszczmm.dzienniczek.ui.model.UiMessage
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +33,21 @@ data class MessagesState(
 )
 
 class MessagesViewModel(
-    private val session: ApiSession
+    private val session: ApiSession,
+    private val seenItems: SeenItems
 ) : ViewModel() {
+
+    /**
+     * Received messages shown here are added to what the background check has seen, so it
+     * does not notify about a message the user already saw (and maybe read) in the app.
+     */
+    private fun rememberShown(tab: MessageTab, sourceKey: String?, messages: List<UiMessage>) {
+        if (tab != MessageTab.RECEIVED || sourceKey == null || messages.isEmpty()) return
+        viewModelScope.launch {
+            runCatching { seenItems.remember(sourceKey, messages.map { it.id }) }
+                .onFailure { it.printStackTrace() }
+        }
+    }
 
     private val _state = MutableStateFlow(MessagesState(isLoading = true))
 
@@ -81,6 +96,12 @@ class MessagesViewModel(
                         // Synergia web inbox: complete list with sender and date (the mobile API
                         // returns only part of the messages and needs a paid add-on).
                         val uiMessages = librusApi.getSynergiaMessages(currentTab)
+                        rememberShown(
+                            currentTab,
+                            session.activeStudent.value?.librus?.synergiaAccount?.login
+                                ?.let { MessageChecker.librusSourceKey(it) },
+                            uiMessages
+                        )
                         _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                         return@launch
                     }
@@ -125,6 +146,7 @@ class MessagesViewModel(
                             hasAttachments = pMsg.hasZalaczniki
                         )
                     }
+                    rememberShown(currentTab, box.ifBlank { null }?.let { MessageChecker.vulcanSourceKey(it) }, uiMessages)
                     _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                 } else {
                     // Use Hebe API
@@ -150,6 +172,7 @@ class MessagesViewModel(
                             content = hMsg.content
                         )
                     }
+                    rememberShown(currentTab, box.ifBlank { null }?.let { MessageChecker.hebeSourceKey(it) }, uiMessages)
                     _state.value = _state.value.copy(isLoading = false, isRefreshing = false, messages = uiMessages, error = null)
                 }
             } catch (e: Exception) {

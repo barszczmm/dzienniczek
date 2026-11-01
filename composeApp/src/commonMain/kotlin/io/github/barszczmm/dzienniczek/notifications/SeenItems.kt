@@ -33,6 +33,22 @@ class SeenItems(private val dataStore: DataStore<Preferences>) {
         return currentIds.filterNot { it in previousSet }.toSet()
     }
 
+    /**
+     * Adds [ids] to what was seen for [sourceKey] without reporting anything – used when the
+     * app itself shows the list, so a later background check does not notify about these items.
+     */
+    suspend fun remember(sourceKey: String, ids: List<String>) {
+        if (ids.isEmpty()) return
+        val prefKey = stringPreferencesKey("notif_seen_$sourceKey")
+        dataStore.edit { prefs ->
+            val previous: List<String> = prefs[prefKey]?.let {
+                runCatching { json.decodeFromString(idListSerializer, it) }.getOrNull()
+            } ?: emptyList()
+            val merged = (ids + previous).distinct().take(MAX_REMEMBERED_IDS)
+            prefs[prefKey] = json.encodeToString(idListSerializer, merged)
+        }
+    }
+
     private companion object {
         const val MAX_REMEMBERED_IDS = 1000
     }

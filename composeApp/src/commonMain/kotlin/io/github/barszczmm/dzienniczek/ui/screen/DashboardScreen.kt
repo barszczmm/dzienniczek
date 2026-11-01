@@ -1,6 +1,12 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.offset
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -53,9 +59,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -66,12 +83,15 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import io.github.barszczmm.dzienniczek.navigation.Route
+import io.github.barszczmm.dzienniczek.session.StudentSession
 import io.github.barszczmm.dzienniczek.notifications.NotificationNavigation
 import io.github.barszczmm.dzienniczek.notifications.NotificationTarget
 import io.github.barszczmm.dzienniczek.settings.BackgroundCheck
 import io.github.barszczmm.dzienniczek.theme.expressiveGroupShape
 import io.github.barszczmm.dzienniczek.viewmodel.DashboardViewModel
+import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.math.roundToInt
 
 private enum class DashboardTab(
     val label: String,
@@ -109,7 +129,6 @@ fun DashboardScreen(
     val activeStudent by viewModel.activeStudent.collectAsStateWithLifecycle()
     val studentSessions by viewModel.studentSessions.collectAsStateWithLifecycle()
 
-    val currentAccount = viewModel.currentAccount
     val enabledStudents = studentSessions.filter { it.isEnabled }
 
     var showStudentBottomSheet by remember { mutableStateOf(false) }
@@ -280,27 +299,12 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
-                    val initials = currentAccount?.let {
-                        "${it.pupil.firstName.firstOrNull() ?: ""}${it.pupil.surname.firstOrNull() ?: ""}"
-                    } ?: "?"
-
-                    Surface(
+                    StudentAvatar(
+                        activeStudent = activeStudent,
+                        students = enabledStudents,
                         onClick = { if (enabledStudents.isNotEmpty()) showStudentBottomSheet = true },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier
-                            .padding(end = 12.dp)
-                            .size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = initials,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
+                        onSelect = { viewModel.selectStudent(it.id) }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
@@ -370,5 +374,101 @@ fun DashboardScreen(
                 entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
             }
         )
+    }
+}
+
+private fun StudentSession?.initials(): String = this?.account?.pupil?.let {
+    "${it.firstName.firstOrNull() ?: ""}${it.surname.firstOrNull() ?: ""}"
+} ?: "?"
+
+/**
+ * The active student's avatar in the top bar. A tap opens the list of students; like in Gmail,
+ * swiping down on it switches to the next student and swiping up to the previous one (in a loop).
+ */
+@Composable
+private fun StudentAvatar(
+    activeStudent: StudentSession?,
+    students: List<StudentSession>,
+    onClick: () -> Unit,
+    onSelect: (StudentSession) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val thresholdPx = with(LocalDensity.current) { 16.dp.toPx() }
+    val maxOffsetPx = with(LocalDensity.current) { 10.dp.toPx() }
+    val dragOffset = remember { Animatable(0f) }
+    // +1 when the next student came from a swipe down, -1 for the previous one (swipe up).
+    var direction by remember { mutableStateOf(1) }
+
+    fun switchBy(step: Int): Boolean {
+        if (students.size < 2) return false
+        val index = students.indexOfFirst { it.id == activeStudent?.id }.coerceAtLeast(0)
+        direction = step
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onSelect(students[(index + step).mod(students.size)])
+        return true
+    }
+    val currentSwitchBy by rememberUpdatedState(::switchBy)
+
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        modifier = Modifier
+            .padding(end = 12.dp)
+            .size(40.dp)
+            .semantics {
+                contentDescription = "Uczeń: ${activeStudent?.account?.pupil?.let { "${it.firstName} ${it.surname}" } ?: "brak"}"
+                if (students.size > 1) {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Następny uczeń") { currentSwitchBy(1) },
+                        CustomAccessibilityAction("Poprzedni uczeń") { currentSwitchBy(-1) }
+                    )
+                }
+            }
+            .pointerInput(Unit) {
+                var total = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { total = 0f },
+                    onDragEnd = {
+                        when {
+                            total > thresholdPx -> currentSwitchBy(1)
+                            total < -thresholdPx -> currentSwitchBy(-1)
+                        }
+                        scope.launch { dragOffset.animateTo(0f) }
+                    },
+                    onDragCancel = { scope.launch { dragOffset.animateTo(0f) } },
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        total += amount
+                        scope.launch { dragOffset.snapTo((total / 3f).coerceIn(-maxOffsetPx, maxOffsetPx)) }
+                    }
+                )
+            }
+    ) {
+        AnimatedContent(
+            targetState = activeStudent,
+            contentKey = { it?.id },
+            transitionSpec = {
+                val d = direction
+                (slideInVertically(tween(200)) { -d * it } + fadeIn(tween(200))) togetherWith
+                    (slideOutVertically(tween(200)) { d * it } + fadeOut(tween(200)))
+            },
+            label = "student-avatar"
+        ) { student ->
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .offset { IntOffset(0, dragOffset.value.roundToInt()) }
+            ) {
+                Text(
+                    text = student.initials(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
     }
 }

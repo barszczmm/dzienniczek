@@ -50,7 +50,7 @@ val appModule = module {
     viewModel { HomeworkViewModel(get()) }
     viewModel { NotesViewModel(get()) }
     viewModel { AnnouncementsViewModel(get()) }
-    viewModel { MessagesViewModel(get()) }
+    viewModel { MessagesViewModel(get(), get()) }
     viewModel { MessageDetailsViewModel(get()) }
     viewModel { SettingsViewModel(get(), get()) }
     viewModel { StartViewModel(get(), get()) }

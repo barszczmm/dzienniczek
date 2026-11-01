@@ -39,7 +39,8 @@ data class NewMessage(
  * through wiadomosci.eduvulcan.pl (or Hebe when no web credentials are stored).
  *
  * The first time a mailbox is seen its current messages are only remembered, so the
- * user does not get a flood of notifications for old messages.
+ * user does not get a flood of notifications for old messages. Messages already read
+ * (e.g. on the web or in the app) and messages already shown in the app's list are skipped.
  */
 class MessageChecker(
     private val seenItems: SeenItems,
@@ -101,9 +102,9 @@ class MessageChecker(
                     val autoLoginToken = api.getAutoLoginToken()
                     val messages = api.getSynergiaMessages(autoLoginToken, MessageTab.RECEIVED)
 
-                    val sourceKey = "librus:${account.login}"
+                    val sourceKey = librusSourceKey(account.login)
                     val newIds = diffAndRemember(sourceKey, messages.map { it.id })
-                    messages.filter { it.id in newIds }.forEach { msg ->
+                    messages.filter { it.id in newIds && it.isUnread }.forEach { msg ->
                         pacer.pause()
                         val content = runCatching { api.getSynergiaMessageContent(msg.id) }.getOrDefault("")
                         out += NewMessage(
@@ -169,9 +170,9 @@ class MessageChecker(
                     box = box,
                     pupilId = account.pupil.id
                 )
-                val sourceKey = "hebe:$box"
+                val sourceKey = hebeSourceKey(box)
                 val newIds = diffAndRemember(sourceKey, messages.map { it.id })
-                messages.filter { it.id in newIds }.forEach { msg ->
+                messages.filter { it.id in newIds && it.status == 0 }.forEach { msg ->
                     out += NewMessage(
                         key = "$sourceKey:${msg.id}",
                         source = "eduVulcan",
@@ -218,7 +219,7 @@ class MessageChecker(
             pacer.pause()
             runCatching {
                 val messages = withApi { it.getReceivedMessages(mailboxKey = mailbox.globalKey) }
-                val sourceKey = "vulcan:${mailbox.globalKey}"
+                val sourceKey = vulcanSourceKey(mailbox.globalKey)
                 val newIds = diffAndRemember(sourceKey, messages.map { it.apiGlobalKey })
                 val studentName = VulcanMailboxName.parse(mailbox.nazwa)?.studentName ?: mailbox.nazwa
                 // Same matching as the messages screen: the mailbox name contains the child's name.
@@ -228,7 +229,7 @@ class MessageChecker(
                     firstName.isNotEmpty() && studentName.contains(firstName, ignoreCase = true) &&
                         surname.isNotEmpty() && studentName.contains(surname, ignoreCase = true)
                 }?.id ?: students.singleOrNull()?.id
-                messages.filter { it.apiGlobalKey in newIds }.forEach { msg ->
+                messages.filter { it.apiGlobalKey in newIds && !it.przeczytana }.forEach { msg ->
                     pacer.pause()
                     val details = runCatching { withApi { it.getMessageDetails(msg.apiGlobalKey) } }.getOrNull()
                     out += NewMessage(
@@ -251,8 +252,14 @@ class MessageChecker(
     private suspend fun diffAndRemember(sourceKey: String, currentIds: List<String>): Set<String> =
         seenItems.diffAndRemember(sourceKey, currentIds)
 
-    private companion object {
+    companion object {
+        /** Keys shared with the messages screen, which marks the messages it shows as seen. */
+        fun librusSourceKey(synergiaLogin: String) = "librus:$synergiaLogin"
+        fun vulcanSourceKey(mailboxKey: String) = "vulcan:$mailboxKey"
+        fun hebeSourceKey(box: String) = "hebe:$box"
+
+
         /** Kept for the lifetime of the process so we don't log in to eduVulcan on every check. */
-        val prometheusCache = mutableMapOf<String, PrometheusMessagesApi>()
+        private val prometheusCache = mutableMapOf<String, PrometheusMessagesApi>()
     }
 }
