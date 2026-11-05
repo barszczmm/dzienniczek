@@ -295,14 +295,18 @@ class DzienniczekLibrusApi(
         }
         if (replyControls.isEmpty()) throw IllegalStateException("Librus: nie znaleziono przycisku „Odpowiedz”")
 
+        val pageScripts = messageDoc.select("script").joinToString("\n") { it.data() }.replace("\\/", "/")
         val urlInJs = Regex("""['"]((?:https?://synergia\.librus\.pl)?/?wiadomosci/[^'"]+)['"]""")
         val attempts = mutableListOf<suspend () -> Pair<String, String>>()
         for (control in replyControls) {
             val ownForm = control.closest("form")
-            val onclick = control.attr("onclick")
+            // Synergia buttons often call a generated function (e.g. `linkButtonFn…()`)
+            // defined in a <script> on the page – look at its body as well.
+            val onclick = control.attr("onclick").let { it + " " + jsFunctionBodies(it, pageScripts) }
             val href = control.attr("href").takeIf { it.isNotBlank() && !it.startsWith("javascript") && it != "#" }
             val jsUrl = urlInJs.find(onclick)?.groupValues?.get(1)
                 ?: urlInJs.find(control.attr("href"))?.groupValues?.get(1)
+                ?: Regex("""['"](/[a-z][^'"\s]*/[^'"\s]*)['"]""").find(onclick)?.groupValues?.get(1)
             val formAction = control.attr("formaction").takeIf { it.isNotBlank() }
             val changesFormAction = Regex("""action\s*=""", RegexOption.IGNORE_CASE).containsMatchIn(onclick)
 
@@ -343,7 +347,8 @@ class DzienniczekLibrusApi(
         }
         val form = foundForm ?: run {
             val controlsInfo = replyControls.joinToString(" | ") { el ->
-                "<${el.tagName()}> href=${el.attr("href")} onclick=${el.attr("onclick").take(120)} form=${el.closest("form")?.attr("action")}"
+                val js = jsFunctionBodies(el.attr("onclick"), pageScripts).replace(Regex("\\s+"), " ").take(300)
+                "<${el.tagName()}> href=${el.attr("href")} onclick=${el.attr("onclick").take(120)} form=${el.closest("form")?.attr("action")} js=${js.ifBlank { "brak" }}"
             }
             throw IllegalStateException(
                 "Librus: nie znaleziono formularza odpowiedzi. Próby: ${tried.joinToString("; ")}. Przycisk: $controlsInfo"
@@ -368,6 +373,25 @@ class DzienniczekLibrusApi(
             throw IllegalStateException("Librus: wiadomość prawdopodobnie nie została wysłana. ${error.ifBlank { "" }}".trim())
         }
     }
+
+    /**
+     * Bodies of the JavaScript functions called in [onclick] (`name()`), found in [scripts]
+     * as `function name() {…}` or `name = function() {…}`.
+     */
+    private fun jsFunctionBodies(onclick: String, scripts: String): String =
+        Regex("""([A-Za-z_$][\w$]*)\s*\(""").findAll(onclick).map { it.groupValues[1] }.distinct()
+            .mapNotNull { name ->
+                val escaped = Regex.escape(name)
+                val start = Regex("""(?:function\s+$escaped\s*\([^)]*\)|$escaped\s*[=:]\s*function\s*\([^)]*\))\s*\{""")
+                    .find(scripts) ?: return@mapNotNull null
+                var depth = 1
+                var i = start.range.last + 1
+                while (i < scripts.length && depth > 0) {
+                    when (scripts[i]) { '{' -> depth++; '}' -> depth-- }
+                    i++
+                }
+                scripts.substring(start.range.last + 1, (i - 1).coerceAtLeast(start.range.last + 1))
+            }.joinToString(" ")
 
     /** All values a browser would submit for [form] (hidden/text inputs, checked boxes, selects, textareas). */
     private fun formParameters(
