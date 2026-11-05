@@ -285,32 +285,72 @@ class DzienniczekLibrusApi(
         val messageHtml = synergiaPage(messageUrl) { "container-message-content" in it }
         val messageDoc = Ksoup.parse(messageHtml)
 
-        // 1. Open the reply form – a link/button, or a form on the message page.
-        val replyControl = messageDoc.select("a, input, button").firstOrNull { el ->
+        // 1. Open the reply form – a link/button, or a form on the message page. Synergia
+        //    has used several variants (plain link, onclick navigation, onclick changing
+        //    the form action, submit button), so every candidate request is tried until
+        //    one of them returns a page with the reply form.
+        val replyControls = messageDoc.select("a, input, button").filter { el ->
             val label = (el.text() + " " + el.attr("value") + " " + el.attr("title")).lowercase()
-            "odpowiedz" in label
-        } ?: throw IllegalStateException("Librus: nie znaleziono przycisku „Odpowiedz”")
+            "odpowiedz" in label && "odpowiedzi" !in label
+        }
+        if (replyControls.isEmpty()) throw IllegalStateException("Librus: nie znaleziono przycisku „Odpowiedz”")
 
-        val ownForm = replyControl.closest("form")
-        val linkUrl = replyControl.attr("href").takeIf { it.isNotBlank() && !it.startsWith("javascript") }
-            ?: Regex("""['"](/wiadomosci/[^'"]+)['"]""").find(replyControl.attr("onclick"))?.groupValues?.get(1)
-        val (replyPageUrl, replyHtml) = synergiaMutex.withLock {
-            if (linkUrl != null) {
-                val url = resolveSynergiaUrl(messageUrl, linkUrl)
-                url to synergiaClient.get(url).bodyAsText()
-            } else if (ownForm != null) {
-                val params = formParameters(ownForm, submitter = replyControl)
-                val url = resolveSynergiaUrl(messageUrl, ownForm.attr("action"))
-                url to synergiaClient.submitForm(url, params).bodyAsText()
-            } else {
-                throw IllegalStateException("Librus: nie udało się otworzyć formularza odpowiedzi")
+        val urlInJs = Regex("""['"]((?:https?://synergia\.librus\.pl)?/?wiadomosci/[^'"]+)['"]""")
+        val attempts = mutableListOf<suspend () -> Pair<String, String>>()
+        for (control in replyControls) {
+            val ownForm = control.closest("form")
+            val onclick = control.attr("onclick")
+            val href = control.attr("href").takeIf { it.isNotBlank() && !it.startsWith("javascript") && it != "#" }
+            val jsUrl = urlInJs.find(onclick)?.groupValues?.get(1)
+                ?: urlInJs.find(control.attr("href"))?.groupValues?.get(1)
+            val formAction = control.attr("formaction").takeIf { it.isNotBlank() }
+            val changesFormAction = Regex("""action\s*=""", RegexOption.IGNORE_CASE).containsMatchIn(onclick)
+
+            if (ownForm != null && (changesFormAction || formAction != null)) {
+                val target = formAction ?: jsUrl
+                if (target != null) attempts += {
+                    val url = resolveSynergiaUrl(messageUrl, target)
+                    val params = formParameters(ownForm, submitter = control)
+                    url to synergiaClient.submitForm(url, params).bodyAsText()
+                }
             }
+            href?.let { link -> attempts += { resolveSynergiaUrl(messageUrl, link).let { it to synergiaClient.get(it).bodyAsText() } } }
+            jsUrl?.let { link -> attempts += { resolveSynergiaUrl(messageUrl, link).let { it to synergiaClient.get(it).bodyAsText() } } }
+            if (ownForm != null) attempts += {
+                val url = resolveSynergiaUrl(messageUrl, ownForm.attr("action"))
+                url to synergiaClient.submitForm(url, formParameters(ownForm, submitter = control)).bodyAsText()
+            }
+        }
+        if (attempts.isEmpty()) throw IllegalStateException("Librus: nie udało się otworzyć formularza odpowiedzi")
+
+        fun replyFormIn(html: String) = Ksoup.parse(html).select("form").firstOrNull { f ->
+            f.selectFirst("textarea") != null && f.select("input, button").any { b ->
+                "wyślij" in (b.text() + " " + b.attr("value")).lowercase()
+            }
+        } ?: Ksoup.parse(html).select("form").firstOrNull { it.selectFirst("textarea") != null }
+
+        var replyPageUrl = messageUrl
+        var foundForm: com.fleeksoft.ksoup.nodes.Element? = null
+        val tried = mutableListOf<String>()
+        synergiaMutex.withLock {
+            for (attempt in attempts) {
+                val (url, html) = try { attempt() } catch (e: Exception) { tried += "błąd: ${e.message}"; continue }
+                val found = replyFormIn(html)
+                if (found != null) { replyPageUrl = url; foundForm = found; break }
+                val title = Ksoup.parse(html).title().trim()
+                tried += "${url.removePrefix("https://synergia.librus.pl")} (${title.ifBlank { "bez tytułu" }})"
+            }
+        }
+        val form = foundForm ?: run {
+            val controlsInfo = replyControls.joinToString(" | ") { el ->
+                "<${el.tagName()}> href=${el.attr("href")} onclick=${el.attr("onclick").take(120)} form=${el.closest("form")?.attr("action")}"
+            }
+            throw IllegalStateException(
+                "Librus: nie znaleziono formularza odpowiedzi. Próby: ${tried.joinToString("; ")}. Przycisk: $controlsInfo"
+            )
         }
 
         // 2. Fill and submit the reply form.
-        val replyDoc = Ksoup.parse(replyHtml)
-        val form = replyDoc.select("form").firstOrNull { it.selectFirst("textarea") != null }
-            ?: throw IllegalStateException("Librus: nie znaleziono formularza odpowiedzi")
         val textarea = form.selectFirst("textarea")!!
         val quoted = textarea.wholeText().trim()
         val body = if (quoted.isBlank()) text else text.trimEnd() + "\n\n" + quoted
