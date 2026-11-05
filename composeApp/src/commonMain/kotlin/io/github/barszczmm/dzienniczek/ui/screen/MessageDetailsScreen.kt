@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -108,36 +109,41 @@ fun MessageDetailsScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    if (state.subject != null) {
-                        Text(
-                            text = state.subject!!,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    if (state.sender != null) {
-                        Text(
-                            text = "Od: ${state.sender}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (state.date != null) {
-                        Text(
-                            text = "Data: ${state.date}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (state.subject != null || state.sender != null || state.date != null) {
-                        Spacer(Modifier.height(16.dp))
-                    }
+                    // Subject, sender, date and content can be selected and copied.
+                    SelectionContainer {
+                        Column {
+                            if (state.subject != null) {
+                                Text(
+                                    text = state.subject!!,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(8.dp))
+                            }
+                            if (state.sender != null) {
+                                Text(
+                                    text = "Od: ${state.sender}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (state.date != null) {
+                                Text(
+                                    text = "Data: ${state.date}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (state.subject != null || state.sender != null || state.date != null) {
+                                Spacer(Modifier.height(16.dp))
+                            }
                     
-                    Text(
-                        text = rememberHtmlText(state.content ?: ""),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                            Text(
+                                text = rememberHtmlText(state.content ?: ""),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
 
                     if (viewModel.canReply(route.isHebe)) {
                         Spacer(Modifier.height(24.dp))
