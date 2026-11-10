@@ -1,5 +1,7 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -211,42 +213,46 @@ fun GradeChip(grade: Grade) {
         }
     }
 
-    if (showDetails) {
+    // The dialog is a separate window, so it must not join the screen's SelectionContainer
+    // (selecting text in it would crash); its texts get their own SelectionContainer.
+    if (showDetails) DisableSelection {
         AlertDialog(
             onDismissRequest = { showDetails = false },
             confirmButton = {
                 TextButton(onClick = { showDetails = false }) { Text("Zamknij") }
             },
-            title = { Text(grade.content) },
+            title = { SelectionContainer { Text(grade.content) } },
             text = {
-                Column {
-                    Text(
-                        text = grade.column.subject.name,
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    if (grade.column.name.isNotBlank()) {
+                SelectionContainer {
+                    Column {
                         Text(
-                            text = grade.column.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = grade.column.subject.name,
+                            style = MaterialTheme.typography.titleSmall
                         )
-                    }
-                    if (ownColor != null && grade.column.code.isNotBlank()) {
-                        Text("Zakres ocen: ${grade.column.code}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (ownColor != null && grade.contentRaw.isNotBlank() && grade.contentRaw != grade.content) {
-                        Text("Wartość w Librusie: ${grade.contentRaw}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (grade.column.weight > 0) {
-                        Text("Waga: ${grade.column.weight}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    if (grade.creator.displayName.isNotBlank()) {
-                        Text("Nauczyciel: ${grade.creator.displayName}", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Text("Data: ${formatGradeDate(grade)}", style = MaterialTheme.typography.bodyMedium)
-                    if (grade.comment.isNotBlank()) {
-                        Spacer(Modifier.height(12.dp))
-                        Text(grade.comment, style = MaterialTheme.typography.bodyLarge)
+                        if (grade.column.name.isNotBlank()) {
+                            Text(
+                                text = grade.column.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (ownColor != null && grade.column.code.isNotBlank()) {
+                            Text("Zakres ocen: ${grade.column.code}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (ownColor != null && grade.contentRaw.isNotBlank() && grade.contentRaw != grade.content) {
+                            Text("Wartość w Librusie: ${grade.contentRaw}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (grade.column.weight > 0) {
+                            Text("Waga: ${grade.column.weight}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (grade.creator.displayName.isNotBlank()) {
+                            Text("Nauczyciel: ${grade.creator.displayName}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Text("Data: ${formatGradeDate(grade)}", style = MaterialTheme.typography.bodyMedium)
+                        if (grade.comment.isNotBlank()) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(grade.comment, style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
                 }
             }

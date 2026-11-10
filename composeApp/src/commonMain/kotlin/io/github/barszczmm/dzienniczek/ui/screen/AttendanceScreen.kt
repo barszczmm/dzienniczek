@@ -1,5 +1,7 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -110,21 +112,25 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var details by remember { mutableStateOf<AttendanceEntry?>(null) }
 
-    details?.let { entry ->
+    // The dialog is a separate window, so it must not join the screen's SelectionContainer
+    // (selecting text in it would crash); its texts get their own SelectionContainer.
+    details?.let { entry -> DisableSelection {
         AlertDialog(
             onDismissRequest = { details = null },
             confirmButton = { TextButton(onClick = { details = null }) { Text("Zamknij") } },
-            title = { Text(entry.typeName.ifBlank { entry.kind.label() }) },
+            title = { SelectionContainer { Text(entry.typeName.ifBlank { entry.kind.label() }) } },
             text = {
-                Column {
-                    Text("Data: ${entry.date.label()}.${entry.date.year}")
-                    entry.lessonNumber?.let { Text("Lekcja: $it" + (entry.time?.let { t -> " ($t)" } ?: "")) }
-                    if (entry.subject.isNotBlank()) Text("Przedmiot: ${entry.subject}")
-                    if (entry.teacher.isNotBlank()) Text("Nauczyciel: ${entry.teacher}")
+                SelectionContainer {
+                    Column {
+                        Text("Data: ${entry.date.label()}.${entry.date.year}")
+                        entry.lessonNumber?.let { Text("Lekcja: $it" + (entry.time?.let { t -> " ($t)" } ?: "")) }
+                        if (entry.subject.isNotBlank()) Text("Przedmiot: ${entry.subject}")
+                        if (entry.teacher.isNotBlank()) Text("Nauczyciel: ${entry.teacher}")
+                    }
                 }
             }
         )
-    }
+    } }
 
     RefreshableContent(
         isRefreshing = state.isRefreshing,
