@@ -22,10 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -36,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import io.github.barszczmm.dzienniczek.platform.addToCalendar
+import io.github.barszczmm.dzienniczek.platform.isAddToCalendarSupported
+import io.github.barszczmm.dzienniczek.util.htmlToPlainText
+import kotlinx.datetime.LocalDate
 
 /** Pull down to download the screen's data again. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,5 +176,22 @@ fun PopupSelectionScope(content: @Composable () -> Unit) {
         LocalTextContextMenuDropdownProvider provides null
     ) {
         DisableSelection(content)
+    }
+}
+
+/** Small icon that adds an all-day event to the system calendar; renders nothing where unsupported (iOS). */
+@Composable
+fun AddToCalendarButton(title: String, htmlDescription: String, date: LocalDate, modifier: Modifier = Modifier) {
+    if (!isAddToCalendarSupported) return
+    IconButton(
+        onClick = { addToCalendar(title, htmlToPlainText(htmlDescription), date) },
+        modifier = modifier.size(32.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Event,
+            contentDescription = "Dodaj do kalendarza",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

@@ -179,6 +179,12 @@ fun ExamCard(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
+                AddToCalendarButton(
+                    title = "${exam.type}: ${exam.subject.name}",
+                    htmlDescription = exam.content + "<br>Nauczyciel: " + exam.creator.displayName,
+                    date = exam.deadline,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
             if (exam.content.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))

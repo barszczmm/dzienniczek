@@ -164,6 +164,12 @@ fun HomeworkCard(
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
+                AddToCalendarButton(
+                    title = "Zadanie domowe: ${hw.subject.name}",
+                    htmlDescription = hw.content + "<br>Nauczyciel: " + hw.creator.displayName,
+                    date = hw.deadline,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
             Spacer(Modifier.height(6.dp))
             Text(
