@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.automirrored.outlined.Message
@@ -345,35 +346,40 @@ fun DashboardScreen(
             }
         }
     ) { innerPadding ->
-        NavDisplay(
+        // Every text on the screens (grades, exams, homework, notes, …) can be selected and copied.
+        SelectionContainer(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            backStack = backStack,
-            onBack = { backStack.removeLastOrNull() },
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator()
-            ),
-            transitionSpec = {
-                fadeIn(tween(300)) togetherWith fadeOut(tween(300))
-            },
-            entryProvider = entryProvider {
-                entry<Route.Start> { StartScreen(onNavigate = { backStack.add(it) }) }
-                entry<Route.Grades> { GradesScreen() }
-                entry<Route.Timetable> { TimetableScreen() }
-                entry<Route.Exams> { ExamsScreen() }
-                entry<Route.Homework> { HomeworkScreen() }
-                entry<Route.More> { MoreScreen(onNavigate = { backStack.add(it) }) }
-                entry<Route.Notes> { NotesScreen() }
-                entry<Route.Announcements> { AnnouncementsScreen() }
-                entry<Route.Messages> { MessagesScreen(onNavigate = { backStack.add(it) }) }
-                entry<Route.MessageDetails> { MessageDetailsScreen(route = it) }
-                entry<Route.Settings> { SettingsScreen() }
-                entry<Route.Attendance> { AttendanceScreen() }
-                entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
-            }
-        )
+                .padding(innerPadding)
+        ) {
+            NavDisplay(
+                modifier = Modifier.fillMaxSize(),
+                backStack = backStack,
+                onBack = { backStack.removeLastOrNull() },
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
+                transitionSpec = {
+                    fadeIn(tween(300)) togetherWith fadeOut(tween(300))
+                },
+                entryProvider = entryProvider {
+                    entry<Route.Start> { StartScreen(onNavigate = { backStack.add(it) }) }
+                    entry<Route.Grades> { GradesScreen() }
+                    entry<Route.Timetable> { TimetableScreen() }
+                    entry<Route.Exams> { ExamsScreen() }
+                    entry<Route.Homework> { HomeworkScreen() }
+                    entry<Route.More> { MoreScreen(onNavigate = { backStack.add(it) }) }
+                    entry<Route.Notes> { NotesScreen() }
+                    entry<Route.Announcements> { AnnouncementsScreen() }
+                    entry<Route.Messages> { MessagesScreen(onNavigate = { backStack.add(it) }) }
+                    entry<Route.MessageDetails> { MessageDetailsScreen(route = it) }
+                    entry<Route.Settings> { SettingsScreen() }
+                    entry<Route.Attendance> { AttendanceScreen() }
+                    entry<Route.Account> { AccountScreen(onLogout = onLogout, onNavigateToAddAccount = onNavigateToAddAccount) }
+                }
+            )
+        }
     }
 }
 
