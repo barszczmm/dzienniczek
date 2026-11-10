@@ -1,5 +1,9 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuToolbarProvider
+import androidx.compose.foundation.text.contextmenu.provider.LocalTextContextMenuDropdownProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -147,5 +151,24 @@ fun EmptyScreen(message: String) {
                 textAlign = TextAlign.Center
             )
         }
+    }
+}
+
+/**
+ * Wraps a dialog or popup menu shown from a screen inside the app-wide SelectionContainer.
+ *
+ * A dialog is a separate window, but it inherits the screen's composition locals: its texts
+ * would join the screen's SelectionContainer, and a SelectionContainer inside the dialog would
+ * reuse the screen's "Copy" toolbar, which is anchored in the main window. Either way, selecting
+ * text in the dialog crashed the app. This drops both, so a SelectionContainer inside [content]
+ * works on its own and texts outside one are simply not selectable.
+ */
+@Composable
+fun PopupSelectionScope(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalTextContextMenuToolbarProvider provides null,
+        LocalTextContextMenuDropdownProvider provides null
+    ) {
+        DisableSelection(content)
     }
 }

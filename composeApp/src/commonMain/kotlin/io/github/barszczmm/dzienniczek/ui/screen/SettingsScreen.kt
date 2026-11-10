@@ -1,6 +1,5 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
-import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -239,8 +238,8 @@ private fun HourPicker(hour: Int, hours: IntRange, onSelect: (Int) -> Unit) {
         OutlinedButton(onClick = { expanded = true }) {
             Text("$hour:00")
         }
-        // The menu is a separate popup window, so it must not join the screen's SelectionContainer.
-        DisableSelection {
+        // See PopupSelectionScope: the menu is a separate popup window.
+        PopupSelectionScope {
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 hours.forEach { h ->
                     DropdownMenuItem(

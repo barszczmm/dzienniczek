@@ -1,7 +1,6 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -112,9 +111,9 @@ fun AttendanceScreen(viewModel: AttendanceViewModel = koinViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var details by remember { mutableStateOf<AttendanceEntry?>(null) }
 
-    // The dialog is a separate window, so it must not join the screen's SelectionContainer
-    // (selecting text in it would crash); its texts get their own SelectionContainer.
-    details?.let { entry -> DisableSelection {
+    // See PopupSelectionScope: without it, selecting text in the dialog crashes the app;
+    // its texts get their own SelectionContainer.
+    details?.let { entry -> PopupSelectionScope {
         AlertDialog(
             onDismissRequest = { details = null },
             confirmButton = { TextButton(onClick = { details = null }) { Text("Zamknij") } },

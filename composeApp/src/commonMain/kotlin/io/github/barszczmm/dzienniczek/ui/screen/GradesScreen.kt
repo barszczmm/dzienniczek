@@ -1,7 +1,6 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -213,9 +212,9 @@ fun GradeChip(grade: Grade) {
         }
     }
 
-    // The dialog is a separate window, so it must not join the screen's SelectionContainer
-    // (selecting text in it would crash); its texts get their own SelectionContainer.
-    if (showDetails) DisableSelection {
+    // See PopupSelectionScope: without it, selecting text in the dialog crashes the app;
+    // its texts get their own SelectionContainer.
+    if (showDetails) PopupSelectionScope {
         AlertDialog(
             onDismissRequest = { showDetails = false },
             confirmButton = {

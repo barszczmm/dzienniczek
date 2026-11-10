@@ -1,6 +1,5 @@
 package io.github.barszczmm.dzienniczek.ui.screen
 
-import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,9 +69,8 @@ fun MessageDetailsScreen(
         )
     }
 
-    // The dialog is a separate window, so it must not join the screen's SelectionContainer
-    // (selecting text in it would crash).
-    if (confirmSend) DisableSelection {
+    // See PopupSelectionScope: without it, long-pressing text in the dialog crashes the app.
+    if (confirmSend) PopupSelectionScope {
         AlertDialog(
             onDismissRequest = { confirmSend = false },
             title = { Text("Wysłać odpowiedź?") },
