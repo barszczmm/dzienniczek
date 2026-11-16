@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -106,9 +107,11 @@ fun MessageDetailsScreen(
                 // A LazyColumn, like the grades list: OnePlus' scrolling screenshot doesn't scroll a
                 // Column with verticalScroll. Texts are selectable through the app-wide
                 // SelectionContainer in DashboardScreen.
-                // TEST: wrapped like the other screens (pull-to-refresh, refresh does nothing yet),
-                // to check whether that makes OnePlus' scrolling screenshot work.
-                RefreshableContent(isRefreshing = false, onRefresh = {}) {
+                // TEST: the content is split into lines, one list item each (the working screens
+                // are lists of small items), to check whether that makes OnePlus' scrolling
+                // screenshot work.
+                val content = rememberHtmlText(state.content ?: "")
+                val contentLines = remember(content) { content.splitLines() }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp)
@@ -143,9 +146,9 @@ fun MessageDetailsScreen(
                         }
                     }
 
-                    item(key = "content") {
+                    items(contentLines.size) { index ->
                         Text(
-                            text = rememberHtmlText(state.content ?: ""),
+                            text = contentLines[index],
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
@@ -216,8 +219,22 @@ fun MessageDetailsScreen(
                         Spacer(Modifier.height(24.dp))
                     } }
                 }
-                }
             }
         }
+    }
+}
+
+/** Splits the text at line breaks, keeping each line's styles and links. */
+private fun AnnotatedString.splitLines(): List<AnnotatedString> {
+    val lines = mutableListOf<AnnotatedString>()
+    var start = 0
+    while (true) {
+        val end = text.indexOf('\n', start)
+        if (end < 0) {
+            lines.add(subSequence(start, text.length))
+            return lines
+        }
+        lines.add(subSequence(start, end))
+        start = end + 1
     }
 }
