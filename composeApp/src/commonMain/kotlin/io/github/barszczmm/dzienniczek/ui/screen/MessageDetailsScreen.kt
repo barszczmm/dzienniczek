@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -105,10 +106,21 @@ fun MessageDetailsScreen(
             }
             else -> {
                 // Texts are selectable through the app-wide SelectionContainer in DashboardScreen.
-                // TEST: the message opens scrolled down by 1 px - OnePlus' scrolling screenshot
-                // doesn't scroll this screen when it is exactly at the top.
+                // OnePlus' scrolling screenshot doesn't scroll this screen when it is exactly at the
+                // top (it does on the other screens), so the message is kept 1 px below the top:
+                // it opens there and goes back there whenever it is scrolled all the way up.
+                val listState = rememberLazyListState(initialFirstVisibleItemScrollOffset = 1)
+                LaunchedEffect(listState) {
+                    snapshotFlow {
+                        !listState.isScrollInProgress &&
+                            listState.firstVisibleItemIndex == 0 &&
+                            listState.firstVisibleItemScrollOffset == 0
+                    }.collect { atTop ->
+                        if (atTop && listState.canScrollForward) listState.scrollToItem(0, 1)
+                    }
+                }
                 LazyColumn(
-                    state = rememberLazyListState(initialFirstVisibleItemScrollOffset = 1),
+                    state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp)
                 ) {
