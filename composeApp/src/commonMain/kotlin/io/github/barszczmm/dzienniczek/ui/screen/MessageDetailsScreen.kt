@@ -24,9 +24,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -104,14 +103,14 @@ fun MessageDetailsScreen(
                 })
             }
             else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                // A LazyColumn, like the grades list: OnePlus' scrolling screenshot doesn't scroll a
+                // Column with verticalScroll. Texts are selectable through the app-wide
+                // SelectionContainer in DashboardScreen.
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp)
                 ) {
-                    // Subject, sender, date and content can be selected and copied.
-                    SelectionContainer {
+                    item(key = "header") {
                         Column {
                             if (state.subject != null) {
                                 Text(
@@ -138,15 +137,17 @@ fun MessageDetailsScreen(
                             if (state.subject != null || state.sender != null || state.date != null) {
                                 Spacer(Modifier.height(16.dp))
                             }
-                    
-                            Text(
-                                text = rememberHtmlText(state.content ?: ""),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
                         }
                     }
 
-                    if (viewModel.canReply(route.isHebe)) {
+                    item(key = "content") {
+                        Text(
+                            text = rememberHtmlText(state.content ?: ""),
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    if (viewModel.canReply(route.isHebe)) item(key = "reply") { Column {
                         Spacer(Modifier.height(24.dp))
                         HorizontalDivider()
                         Spacer(Modifier.height(16.dp))
@@ -210,7 +211,7 @@ fun MessageDetailsScreen(
                             }
                         }
                         Spacer(Modifier.height(24.dp))
-                    }
+                    } }
                 }
             }
         }
