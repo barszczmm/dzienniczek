@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -107,9 +106,9 @@ fun MessageDetailsScreen(
                 // A LazyColumn, like the grades list: OnePlus' scrolling screenshot doesn't scroll a
                 // Column with verticalScroll. Texts are selectable through the app-wide
                 // SelectionContainer in DashboardScreen.
-                // TEST: selection is off on this screen, to check whether it blocks OnePlus'
-                // scrolling screenshot.
-                DisableSelection {
+                // TEST: wrapped like the other screens (pull-to-refresh, refresh does nothing yet),
+                // to check whether that makes OnePlus' scrolling screenshot work.
+                RefreshableContent(isRefreshing = false, onRefresh = {}) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp)
